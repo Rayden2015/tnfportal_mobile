@@ -22,7 +22,10 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="project/[id]" options={{ headerShown: true, title: 'Project' }} />
+      <Stack.Screen name="project/create" options={{ headerShown: true, title: 'New project' }} />
+      <Stack.Screen name="project/edit/[id]" options={{ headerShown: true, title: 'Edit project' }} />
       <Stack.Screen name="poll/[id]" options={{ headerShown: true, title: 'Poll' }} />
+      <Stack.Screen name="message/[id]" options={{ headerShown: true, title: 'Message' }} />
       <Stack.Screen name="volunteer/[id]" options={{ headerShown: true, title: 'Volunteer' }} />
       <Stack.Screen name="attendance/[id]" options={{ headerShown: true, title: 'Attendance' }} />
       <Stack.Screen

@@ -71,6 +71,39 @@ export interface Project {
   interest_open?: boolean;
   feedback_open?: boolean;
   volunteers_count?: number;
+  location_beneficiary_id?: number | null;
+  program_type_label?: string | null;
+}
+
+export interface ProgramTypeOption {
+  value: string;
+  label: string;
+}
+
+export interface ProjectWritePayload {
+  title: string;
+  description: string;
+  program_type?: string;
+  start_date: string;
+  end_date?: string | null;
+  status: string;
+  budget?: number | null;
+  location?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+}
+
+export interface MessageItem {
+  id: number;
+  channel: string;
+  direction?: string | null;
+  recipient?: string | null;
+  subject?: string | null;
+  body?: string | null;
+  status?: string | null;
+  project_id?: number | null;
+  sent_at?: string | null;
+  created_at?: string | null;
 }
 
 export interface Volunteer {

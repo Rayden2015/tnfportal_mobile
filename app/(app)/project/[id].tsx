@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
 import { Button, Card, EmptyState, ErrorBanner, FieldLabel, Input, Screen } from '@/components/ui';
 import Colors from '@/constants/Colors';
@@ -12,6 +12,7 @@ import { formatApiError, useAuth } from '@/src/context/AuthContext';
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const projectId = Number(id);
+  const router = useRouter();
   const { token, tenantSlug, tenant, hasAnyRole } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
@@ -134,6 +135,13 @@ export default function ProjectDetailScreen() {
                 <Text style={[styles.title, { color: colors.text }]}>{project.title}</Text>
                 {project.description ? (
                   <Text style={[styles.body, { color: colors.textMuted }]}>{project.description}</Text>
+                ) : null}
+                {isStaff ? (
+                  <Button
+                    label="Edit project"
+                    variant="secondary"
+                    onPress={() => router.push(`/project/edit/${project.id}` as Href)}
+                  />
                 ) : null}
               </Card>
               <Card>

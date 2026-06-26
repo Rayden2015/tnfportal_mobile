@@ -8,7 +8,7 @@ Cross-platform mobile app (iOS + Android) for [TNF Portal](../tnfportal_web), bu
 |------|-----------|---------------------------|
 | Auth | Login with tenant slug + Sanctum bearer token; sign out all devices | Same |
 | Home | Dashboard summary | Dashboard summary |
-| Projects | My assigned projects | All projects + **bulk check-in roster** |
+| Projects | My assigned projects | All projects + **bulk check-in roster**, **create/edit/delete** |
 | Attendance | Self check-in/out with optional GPS, **offline queue** (check-in + check-out) | View records, open detail, check-out, delete |
 | Volunteers | — | Directory + volunteer detail |
 | Dues | Outstanding balance, history, pay via Kowri/payment link | — |
@@ -16,6 +16,7 @@ Cross-platform mobile app (iOS + Android) for [TNF Portal](../tnfportal_web), bu
 | Giving / Finance | My donation history + lifetime summary | Org donations + expenses (requires `donations.view` / `expenses.view`) |
 | Project contribute | Online contribution toward a project (Kowri / payment link) | — |
 | Notifications | List, mark read, **preference settings** | List, mark read, **preference settings** |
+| Messages | — | Inbox (outbound + WhatsApp replies), message detail |
 | Profile | View/update volunteer profile, sign out | Account info, sign out |
 | Push | Expo push token registration (persisted on backend) | Same |
 
@@ -102,7 +103,8 @@ All v1 endpoints from the Postman collection are wrapped in `src/api/index.ts`:
 
 - `POST /api/v1/auth/login`, `logout`, `logout-all`
 - `GET /api/v1/me`
-- Projects: `index`, `mine`, `show`, roster, bulk check-in
+- Projects: `index`, `mine`, `show`, create/update/delete, program types, roster, bulk check-in, contribute
+- `GET /api/v1/messages`, message detail
 - Volunteers: `index`, `show`
 - Attendance (admin + self-service)
 - Notifications + preferences
@@ -152,8 +154,7 @@ eas build --profile development --platform ios
 
 ## Next phases
 
-- Messages / WhatsApp inbox for staff
-- Project create/edit on mobile
+- Message compose from mobile
 - Community feed, groups
 - Biometric device integration (hardware-specific)
 - Full web parity for admin modules (donors CRUD, beneficiaries, assets, billing, etc.)

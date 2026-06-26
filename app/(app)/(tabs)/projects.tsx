@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Link, useFocusEffect } from 'expo-router';
+import { Link, useFocusEffect, useRouter, type Href } from 'expo-router';
 
-import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -11,6 +11,7 @@ import { formatApiError, useAuth } from '@/src/context/AuthContext';
 
 export default function ProjectsScreen() {
   const { token, tenantSlug, hasAnyRole } = useAuth();
+  const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
@@ -55,6 +56,11 @@ export default function ProjectsScreen() {
     <Screen style={styles.container}>
       <Title>{isStaff ? 'All projects' : 'My projects'}</Title>
       <Subtitle>Programs you can view or volunteer on</Subtitle>
+      {isStaff ? (
+        <View style={styles.createRow}>
+          <Button label="New project" onPress={() => router.push('/project/create' as Href)} />
+        </View>
+      ) : null}
       {error ? <ErrorBanner message={error} /> : null}
 
       <FlatList
@@ -65,7 +71,7 @@ export default function ProjectsScreen() {
           !loading ? (
             <EmptyState
               title="No projects yet"
-              message={isStaff ? 'Create projects in the web portal.' : 'You are not assigned to any projects.'}
+              message={isStaff ? 'Create your first project with the button above.' : 'You are not assigned to any projects.'}
             />
           ) : null
         }
@@ -93,6 +99,9 @@ export default function ProjectsScreen() {
 const styles = StyleSheet.create({
   container: {
     paddingBottom: 0,
+  },
+  createRow: {
+    marginBottom: 12,
   },
   projectTitle: {
     fontSize: 17,

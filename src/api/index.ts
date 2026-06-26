@@ -18,6 +18,9 @@ import type {
   Donation,
   MyDonationsResult,
   Expense,
+  ProgramTypeOption,
+  ProjectWritePayload,
+  MessageItem,
 } from '@/src/api/types';
 
 type AuthContext = {
@@ -79,6 +82,52 @@ export async function listMyProjects(auth: AuthContext) {
 
 export async function getProject(auth: AuthContext, projectId: number) {
   const result = await apiRequest<Project>(`/api/v1/projects/${projectId}`, authHeaders(auth));
+  return result.data;
+}
+
+export async function listProgramTypes(auth: AuthContext) {
+  const result = await apiRequest<ProgramTypeOption[]>('/api/v1/program-types', authHeaders(auth));
+  return result.data;
+}
+
+export async function createProject(auth: AuthContext, payload: ProjectWritePayload) {
+  const result = await apiRequest<Project>('/api/v1/projects', {
+    method: 'POST',
+    body: payload,
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function updateProject(auth: AuthContext, projectId: number, payload: ProjectWritePayload) {
+  const result = await apiRequest<Project>(`/api/v1/projects/${projectId}`, {
+    method: 'PUT',
+    body: payload,
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function deleteProject(auth: AuthContext, projectId: number) {
+  await apiRequest(`/api/v1/projects/${projectId}`, {
+    method: 'DELETE',
+    ...authHeaders(auth),
+  });
+}
+
+export async function listMessages(
+  auth: AuthContext,
+  params?: { direction?: string; search?: string; per_page?: number },
+) {
+  const result = await apiRequest<MessageItem[]>('/api/v1/messages', {
+    ...authHeaders(auth),
+    query: params,
+  });
+  return { items: result.data, meta: result.meta as PaginationMeta | undefined };
+}
+
+export async function getMessage(auth: AuthContext, messageId: number) {
+  const result = await apiRequest<MessageItem>(`/api/v1/messages/${messageId}`, authHeaders(auth));
   return result.data;
 }
 
