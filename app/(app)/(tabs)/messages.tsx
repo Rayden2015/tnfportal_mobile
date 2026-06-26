@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 
-import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { Button, Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -53,6 +53,7 @@ export default function MessagesScreen() {
     <Screen style={styles.container}>
       <Title>Messages</Title>
       <Subtitle>Outbound sends and WhatsApp replies</Subtitle>
+      <Button label="Compose message" onPress={() => router.push('/message/compose' as Href)} />
       {error ? <ErrorBanner message={error} /> : null}
 
       <View style={styles.filters}>

@@ -106,6 +106,34 @@ export interface MessageItem {
   created_at?: string | null;
 }
 
+export interface MessageTemplate {
+  id: number;
+  name: string;
+  channel: string;
+  subject?: string | null;
+  body?: string | null;
+  template_type?: string | null;
+}
+
+export interface MessageComposePayload {
+  channel: 'mail' | 'sms' | 'whatsapp';
+  body: string;
+  subject?: string;
+  template_id?: number;
+  volunteer_ids?: number[];
+  recipient_phone?: string;
+  recipient_email?: string;
+  project_id?: number;
+}
+
+export interface MessageComposeResult {
+  message: string;
+  sent_count: number;
+  failed_count: number;
+  skipped_count: number;
+  message_ids: number[];
+}
+
 export interface Volunteer {
   id: number;
   name: string;

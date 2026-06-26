@@ -21,6 +21,9 @@ import type {
   ProgramTypeOption,
   ProjectWritePayload,
   MessageItem,
+  MessageTemplate,
+  MessageComposePayload,
+  MessageComposeResult,
 } from '@/src/api/types';
 
 type AuthContext = {
@@ -128,6 +131,23 @@ export async function listMessages(
 
 export async function getMessage(auth: AuthContext, messageId: number) {
   const result = await apiRequest<MessageItem>(`/api/v1/messages/${messageId}`, authHeaders(auth));
+  return result.data;
+}
+
+export async function sendMessage(auth: AuthContext, payload: MessageComposePayload) {
+  const result = await apiRequest<MessageComposeResult>('/api/v1/messages', {
+    method: 'POST',
+    body: payload,
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function listMessageTemplates(auth: AuthContext, channel?: string) {
+  const result = await apiRequest<MessageTemplate[]>('/api/v1/message-templates', {
+    ...authHeaders(auth),
+    query: channel ? { channel } : undefined,
+  });
   return result.data;
 }
 
