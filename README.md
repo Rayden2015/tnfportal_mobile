@@ -157,3 +157,4 @@ eas build --profile development --platform ios
 - Community feed, groups
 - Biometric device integration (hardware-specific)
 - Full web parity for admin modules (donors CRUD, beneficiaries, assets, billing, etc.)
+# tnfportal_mobile
