@@ -3,13 +3,12 @@ import { Tabs } from 'expo-router';
 
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
-import { useAuth } from '@/src/context/AuthContext';
+import { NotificationBadgeProvider, useNotificationBadge } from '@/src/context/NotificationBadgeContext';
 
-export default function TabLayout() {
+function TabLayoutInner() {
   const colorScheme = useColorScheme() ?? 'light';
   const colors = Colors[colorScheme];
-  const { hasAnyRole } = useAuth();
-  const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
+  const { unreadCount } = useNotificationBadge();
 
   return (
     <Tabs
@@ -34,57 +33,18 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="attendance"
+        name="community"
         options={{
-          title: isStaff ? 'Attendance' : 'Check-in',
-          tabBarIcon: ({ color, size }) => <Ionicons name="time-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="volunteers"
-        options={{
-          title: 'Volunteers',
-          href: isStaff ? undefined : null,
+          title: 'Community',
+          tabBarBadge: unreadCount > 0 ? (unreadCount > 99 ? '99+' : unreadCount) : undefined,
           tabBarIcon: ({ color, size }) => <Ionicons name="people-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
-        name="dues"
+        name="more"
         options={{
-          title: 'Dues',
-          href: isStaff ? null : undefined,
-          tabBarIcon: ({ color, size }) => <Ionicons name="wallet-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="polls"
-        options={{
-          title: 'Polls',
-          tabBarIcon: ({ color, size }) => <Ionicons name="clipboard-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="donations"
-        options={{
-          title: isStaff ? 'Finance' : 'Giving',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name={isStaff ? 'cash-outline' : 'heart-outline'} color={color} size={size} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="messages"
-        options={{
-          title: 'Messages',
-          href: isStaff ? undefined : null,
-          tabBarIcon: ({ color, size }) => <Ionicons name="chatbubbles-outline" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="notifications"
-        options={{
-          title: 'Alerts',
-          tabBarIcon: ({ color, size }) => <Ionicons name="notifications-outline" color={color} size={size} />,
+          title: 'More',
+          tabBarIcon: ({ color, size }) => <Ionicons name="grid-outline" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -94,6 +54,23 @@ export default function TabLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
         }}
       />
+
+      {/* Hidden routes — reachable from More, Community, or deep links */}
+      <Tabs.Screen name="attendance" options={{ href: null }} />
+      <Tabs.Screen name="volunteers" options={{ href: null }} />
+      <Tabs.Screen name="dues" options={{ href: null }} />
+      <Tabs.Screen name="polls" options={{ href: null }} />
+      <Tabs.Screen name="donations" options={{ href: null }} />
+      <Tabs.Screen name="messages" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
+  );
+}
+
+export default function TabLayout() {
+  return (
+    <NotificationBadgeProvider>
+      <TabLayoutInner />
+    </NotificationBadgeProvider>
   );
 }

@@ -1,49 +1,45 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-import { Button, Card, ErrorBanner, FieldLabel, Input, Screen, Subtitle, Title } from '@/components/ui';
+import { Button, Card, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
-import type { Volunteer } from '@/src/api/types';
+import type { MyDuesResult, VolunteerProfileResult } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
 
 export default function ProfileScreen() {
-  const { user, tenant, token, tenantSlug, logout } = useAuth();
+  const { user, tenant, token, tenantSlug, logout, hasAnyRole } = useAuth();
   const router = useRouter();
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
+  const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
 
-  const [profile, setProfile] = useState<Volunteer | null>(null);
-  const [bio, setBio] = useState('');
-  const [city, setCity] = useState('');
-  const [skills, setSkills] = useState('');
+  const [profile, setProfile] = useState<VolunteerProfileResult | null>(null);
+  const [dues, setDues] = useState<MyDuesResult | null>(null);
+  const [paying, setPaying] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [signingOutAll, setSigningOutAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
 
   const loadProfile = useCallback(async () => {
     if (!token || !tenantSlug) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getVolunteerProfile({ token, tenantSlug });
-      setProfile(data);
-      setBio(data.bio ?? '');
-      setCity(data.city ?? '');
-      setSkills(data.skills ?? '');
+      const auth = { token, tenantSlug };
+      const profilePromise = api.getVolunteerProfile(auth).catch(() => null);
+      const duesPromise = isStaff ? Promise.resolve(null) : api.getMyDues(auth).catch(() => null);
+      const [profileResult, duesResult] = await Promise.all([profilePromise, duesPromise]);
+      setProfile(profileResult);
+      setDues(duesResult);
     } catch (err) {
-      const message = formatApiError(err);
-      if (!message.toLowerCase().includes('volunteer')) {
-        setError(message);
-      }
+      setError(formatApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [token, tenantSlug]);
+  }, [token, tenantSlug, isStaff]);
 
   useFocusEffect(
     useCallback(() => {
@@ -51,38 +47,32 @@ export default function ProfileScreen() {
     }, [loadProfile]),
   );
 
-  const saveProfile = async () => {
-    if (!token || !tenantSlug) return;
-    setSaving(true);
-    setError(null);
-    setStatus(null);
-    try {
-      const updated = await api.updateVolunteerProfile(
-        { token, tenantSlug },
-        { bio, city, skills },
-      );
-      setProfile(updated);
-      setStatus('Profile updated.');
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const signOutAllDevices = async () => {
     if (!token || !tenantSlug) return;
-    setSigningOutAll(true);
-    setError(null);
     try {
       await api.logoutAll({ token, tenantSlug });
       await logout();
     } catch (err) {
       setError(formatApiError(err));
-    } finally {
-      setSigningOutAll(false);
     }
   };
+
+  const handlePayDues = async () => {
+    if (!token || !tenantSlug) return;
+    setPaying(true);
+    setError(null);
+    try {
+      const result = await api.initiateDuesPayment({ token, tenantSlug });
+      await Linking.openURL(result.checkout_url);
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setPaying(false);
+    }
+  };
+
+  const currency = dues?.payment_options.currency ?? tenant?.currency ?? 'GHS';
+  const outstanding = dues?.summary.total_outstanding ?? 0;
 
   return (
     <Screen>
@@ -90,83 +80,133 @@ export default function ProfileScreen() {
         <Title>Profile</Title>
         <Subtitle>{tenant?.name}</Subtitle>
         {error ? <ErrorBanner message={error} /> : null}
-        {status ? <Text style={[styles.status, { color: colors.success }]}>{status}</Text> : null}
 
-        <Card>
-          <Text style={[styles.label, { color: colors.textMuted }]}>Name</Text>
-          <Text style={[styles.value, { color: colors.text }]}>{user?.name}</Text>
-          <Text style={[styles.label, { color: colors.textMuted }]}>Email</Text>
-          <Text style={[styles.value, { color: colors.text }]}>{user?.email}</Text>
-          <Text style={[styles.label, { color: colors.textMuted }]}>Roles</Text>
-          <Text style={[styles.value, { color: colors.text }]}>
-            {(user?.roles ?? []).join(', ') || '—'}
-          </Text>
-        </Card>
-
-        {profile ? (
+        {!isStaff ? (
           <Card>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Volunteer profile</Text>
-            <Text style={[styles.completion, { color: colors.textMuted }]}>
-              {profile.profile_completion_percentage ?? 0}% complete
-            </Text>
-            <FieldLabel>Bio</FieldLabel>
-            <Input value={bio} onChangeText={setBio} multiline placeholder="Tell us about yourself" />
-            <FieldLabel>City</FieldLabel>
-            <Input value={city} onChangeText={setCity} placeholder="City" />
-            <FieldLabel>Skills</FieldLabel>
-            <Input value={skills} onChangeText={setSkills} placeholder="e.g. facilitation, mentoring" />
-            <Button label="Save profile" onPress={saveProfile} loading={saving} />
-          </Card>
-        ) : !loading ? (
-          <Card>
-            <Text style={{ color: colors.textMuted }}>
-              No linked volunteer profile. Staff accounts may not have a volunteer record.
-            </Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Dues status</Text>
+            {dues ? (
+              <>
+                <Text style={[styles.duesLabel, { color: colors.textMuted }]}>Outstanding balance</Text>
+                <Text style={[styles.duesValue, { color: colors.text }]}>
+                  {currency} {outstanding.toFixed(2)}
+                </Text>
+                <Text style={[styles.duesHint, { color: outstanding > 0 ? colors.danger : colors.success }]}>
+                  {outstanding > 0 ? 'Payment due — settle your balance to stay current.' : 'You are up to date.'}
+                </Text>
+                <View style={styles.duesActions}>
+                  {outstanding > 0 ? <Button label="Pay now" onPress={handlePayDues} loading={paying} /> : null}
+                  <Button
+                    label="View dues history"
+                    onPress={() => router.push('/(app)/(tabs)/dues' as Href)}
+                    variant="secondary"
+                  />
+                </View>
+              </>
+            ) : (
+              <Text style={{ color: colors.textMuted }}>
+                {loading ? 'Loading dues…' : 'No dues information available.'}
+              </Text>
+            )}
           </Card>
         ) : null}
 
-        <Button
-          label="Notification preferences"
-          onPress={() => router.push('/notification-preferences' as Href)}
-          variant="secondary"
-        />
+        <Card>
+          {profile?.profile_photo_url ? (
+            <Image source={{ uri: profile.profile_photo_url }} style={styles.photo} />
+          ) : null}
+          <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>{user?.email}</Text>
+          <Text style={[styles.meta, { color: colors.textMuted }]}>
+            {(user?.roles ?? []).join(', ') || 'Volunteer'}
+          </Text>
+
+          {profile ? (
+            <>
+              <Text style={[styles.completion, { color: colors.textMuted }]}>
+                Profile {profile.profile_completion_percentage ?? 0}% complete
+              </Text>
+              {profile.performance_score != null ? (
+                <Text style={{ color: colors.text, marginBottom: 8 }}>
+                  Performance: {profile.performance_score}
+                  {profile.performance_grade ? ` (${profile.performance_grade})` : ''}
+                </Text>
+              ) : null}
+              {profile.bio ? <Text style={{ color: colors.textMuted, marginBottom: 8 }}>{profile.bio}</Text> : null}
+              {profile.city || profile.country ? (
+                <Text style={{ color: colors.textMuted, marginBottom: 8 }}>
+                  {[profile.city, profile.country].filter(Boolean).join(', ')}
+                </Text>
+              ) : null}
+              <Button label="Edit profile" onPress={() => router.push('/profile/edit' as Href)} variant="secondary" />
+            </>
+          ) : !loading && !isStaff ? (
+            <Text style={{ color: colors.textMuted, marginTop: 8 }}>No linked volunteer profile for this account.</Text>
+          ) : null}
+        </Card>
+
+        <Card>
+          <ProfileLink
+            label="Change password"
+            icon="key-outline"
+            colors={colors}
+            onPress={() => router.push('/account/password' as Href)}
+          />
+          <ProfileLink
+            label="Notification preferences"
+            icon="options-outline"
+            colors={colors}
+            onPress={() => router.push('/notification-preferences' as Href)}
+            isLast
+          />
+        </Card>
 
         <Button label="Sign out" onPress={logout} variant="danger" />
-        <Button
-          label="Sign out all devices"
-          onPress={signOutAllDevices}
-          loading={signingOutAll}
-          variant="secondary"
-        />
+        <Button label="Sign out all devices" onPress={signOutAllDevices} variant="secondary" />
       </ScrollView>
     </Screen>
   );
 }
 
+function ProfileLink({
+  label,
+  icon,
+  colors,
+  onPress,
+  isLast,
+}: {
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  colors: (typeof Colors)['light'];
+  onPress: () => void;
+  isLast?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.linkRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}>
+      <Ionicons name={icon} size={18} color={Colors.primary} />
+      <Text style={[styles.linkLabel, { color: colors.text }]}>{label}</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
-  scroll: {
-    paddingBottom: 32,
+  scroll: { paddingBottom: 32 },
+  sectionTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
+  duesLabel: { fontSize: 13 },
+  duesValue: { fontSize: 28, fontWeight: '700', marginTop: 4 },
+  duesHint: { fontSize: 14, marginTop: 6, marginBottom: 12, lineHeight: 20 },
+  duesActions: { gap: 8 },
+  photo: { width: 96, height: 96, borderRadius: 48, marginBottom: 12, alignSelf: 'center' },
+  name: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
+  meta: { fontSize: 14, marginBottom: 2 },
+  completion: { fontSize: 14, marginTop: 10, marginBottom: 8 },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 14,
   },
-  label: {
-    fontSize: 13,
-    marginTop: 8,
-  },
-  value: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  completion: {
-    fontSize: 14,
-    marginBottom: 12,
-  },
-  status: {
-    marginBottom: 12,
-    fontWeight: '600',
-  },
+  linkLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
 });

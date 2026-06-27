@@ -1,13 +1,16 @@
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
 import { Button, Card, EmptyState, ErrorBanner, FieldLabel, Input, Screen } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
-import type { AttendanceRoster, Project } from '@/src/api/types';
+import type { Attendance, AttendanceRoster, Project, ProjectInterestState } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { queueCheckIn } from '@/src/offline/checkInQueue';
+import { queueCheckOut } from '@/src/offline/checkOutQueue';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,6 +29,13 @@ export default function ProjectDetailScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [contributeAmount, setContributeAmount] = useState('');
   const [contributing, setContributing] = useState(false);
+  const [interest, setInterest] = useState<ProjectInterestState | null>(null);
+  const [savingInterest, setSavingInterest] = useState(false);
+  const [activeSession, setActiveSession] = useState<Attendance | null>(null);
+  const [canSelfCheckIn, setCanSelfCheckIn] = useState(false);
+  const [geoEnabled, setGeoEnabled] = useState(false);
+  const [checkInNotes, setCheckInNotes] = useState('');
+  const [checkInLoading, setCheckInLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -36,10 +46,33 @@ export default function ProjectDetailScreen() {
     setError(null);
     try {
       setProject(await api.getProject(auth, projectId));
+      if (!isStaff) {
+        try {
+          setInterest(await api.getProjectInterest(auth, projectId));
+        } catch {
+          setInterest(null);
+        }
+      }
     } catch (err) {
       setError(formatApiError(err));
     }
-  }, [auth, projectId]);
+  }, [auth, projectId, isStaff]);
+
+  const loadVolunteerAttendance = useCallback(async () => {
+    if (!auth || !projectId || isStaff) return;
+    try {
+      const [records, options] = await Promise.all([
+        api.listMyAttendance(auth),
+        api.getCheckInOptions(auth),
+      ]);
+      setActiveSession(records.find((record) => record.is_checked_in) ?? null);
+      setCanSelfCheckIn(options.projects.some((item) => item.id === projectId));
+      setGeoEnabled(options.geo_fencing_enabled);
+    } catch {
+      setActiveSession(null);
+      setCanSelfCheckIn(false);
+    }
+  }, [auth, projectId, isStaff]);
 
   const loadRoster = useCallback(async () => {
     if (!auth || !projectId || !isStaff) return;
@@ -60,7 +93,8 @@ export default function ProjectDetailScreen() {
     useCallback(() => {
       void load();
       void loadRoster();
-    }, [load, loadRoster]),
+      void loadVolunteerAttendance();
+    }, [load, loadRoster, loadVolunteerAttendance]),
   );
 
   const checkedInSet = new Set(roster?.checked_in_volunteer_ids ?? []);
@@ -101,6 +135,127 @@ export default function ProjectDetailScreen() {
       setContributing(false);
     }
   };
+
+  const handleSaveInterest = async (status: string) => {
+    if (!auth || !projectId) return;
+    setSavingInterest(true);
+    setError(null);
+    try {
+      await api.saveProjectInterest(auth, projectId, status);
+      setInterest(await api.getProjectInterest(auth, projectId));
+      Alert.alert('RSVP saved', 'Your response has been recorded.');
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setSavingInterest(false);
+    }
+  };
+
+  const captureLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Location required', 'Enable location to check in for this organization.');
+      return null;
+    }
+    const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+    return {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    };
+  };
+
+  const handleProjectCheckIn = async () => {
+    if (!auth || !projectId) return;
+    setCheckInLoading(true);
+    setError(null);
+    try {
+      let latitude: number | undefined;
+      let longitude: number | undefined;
+      if (geoEnabled) {
+        const coords = await captureLocation();
+        if (!coords) return;
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+      }
+
+      await api.selfCheckIn(auth, {
+        project_id: projectId,
+        latitude,
+        longitude,
+        notes: checkInNotes.trim() || undefined,
+      });
+      setCheckInNotes('');
+      await loadVolunteerAttendance();
+      Alert.alert('Checked in', 'Your attendance has been recorded for this project.');
+    } catch (err) {
+      const message = formatApiError(err);
+      const isNetworkError =
+        message.toLowerCase().includes('network') ||
+        message.toLowerCase().includes('fetch') ||
+        message.toLowerCase().includes('failed');
+
+      if (isNetworkError && project) {
+        let latitude: number | undefined;
+        let longitude: number | undefined;
+        if (geoEnabled) {
+          const coords = await captureLocation();
+          if (coords) {
+            latitude = coords.latitude;
+            longitude = coords.longitude;
+          }
+        }
+        await queueCheckIn({
+          project_id: projectId,
+          project_title: project.title,
+          latitude,
+          longitude,
+          notes: checkInNotes.trim() || undefined,
+        });
+        setCheckInNotes('');
+        Alert.alert('Saved offline', 'Check-in queued and will sync when you are back online.');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const handleProjectCheckOut = async () => {
+    if (!auth || !activeSession) return;
+    setCheckInLoading(true);
+    setError(null);
+    try {
+      await api.selfCheckOut(auth, activeSession.id, checkInNotes.trim() || undefined);
+      setCheckInNotes('');
+      await loadVolunteerAttendance();
+      Alert.alert('Checked out', 'Session closed successfully.');
+    } catch (err) {
+      const message = formatApiError(err);
+      const isNetworkError =
+        message.toLowerCase().includes('network') ||
+        message.toLowerCase().includes('fetch') ||
+        message.toLowerCase().includes('failed');
+
+      if (isNetworkError) {
+        await queueCheckOut({
+          attendance_id: activeSession.id,
+          project_title: project?.title,
+          notes: checkInNotes.trim() || undefined,
+        });
+        setCheckInNotes('');
+        Alert.alert('Saved offline', 'Check-out queued and will sync when you are back online.');
+      } else {
+        setError(message);
+      }
+    } finally {
+      setCheckInLoading(false);
+    }
+  };
+
+  const checkedIntoThisProject = activeSession?.project_id === projectId;
+  const checkedIntoOtherProject =
+    activeSession != null && activeSession.project_id != null && activeSession.project_id !== projectId;
 
   const handleBulkCheckIn = async () => {
     if (!auth || !projectId || selectedIds.length === 0) return;
@@ -161,6 +316,67 @@ export default function ProjectDetailScreen() {
 
               {!isStaff ? (
                 <Card>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Check in</Text>
+                  <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                    {checkedIntoThisProject
+                      ? 'You are currently checked in to this project.'
+                      : checkedIntoOtherProject
+                        ? `You are checked in to ${activeSession?.project?.title ?? 'another project'}. Check out there first.`
+                        : canSelfCheckIn
+                          ? 'Record your attendance for this project session.'
+                          : 'Self check-in is available when you are assigned to this project.'}
+                  </Text>
+                  {canSelfCheckIn || checkedIntoThisProject ? (
+                    <>
+                      <FieldLabel>Notes (optional)</FieldLabel>
+                      <Input
+                        value={checkInNotes}
+                        onChangeText={setCheckInNotes}
+                        placeholder="Session notes"
+                      />
+                      {checkedIntoThisProject ? (
+                        <Button
+                          label="Check out"
+                          onPress={handleProjectCheckOut}
+                          loading={checkInLoading}
+                          variant="secondary"
+                        />
+                      ) : (
+                        <Button
+                          label="Check in to this project"
+                          onPress={handleProjectCheckIn}
+                          loading={checkInLoading}
+                          disabled={checkedIntoOtherProject}
+                        />
+                      )}
+                    </>
+                  ) : null}
+                </Card>
+              ) : null}
+
+              {!isStaff && interest?.interest_open ? (
+                <Card>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>RSVP</Text>
+                  <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                    Let the team know if you are going.
+                    {interest.current?.status ? ` Current: ${interest.statuses[interest.current.status] ?? interest.current.status}` : ''}
+                  </Text>
+                  <View style={styles.rsvpRow}>
+                    {Object.entries(interest.statuses).map(([key, label]) => (
+                      <Button
+                        key={key}
+                        label={label}
+                        variant={interest.current?.status === key ? 'primary' : 'secondary'}
+                        onPress={() => handleSaveInterest(key)}
+                        loading={savingInterest}
+                      />
+                    ))}
+                  </View>
+                </Card>
+              ) : null}
+
+              {!isStaff ? (
+                <Card>
                   <Text style={[styles.sectionTitle, { color: colors.text }]}>Contribute</Text>
                   <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
                     Support this project with an online contribution.
@@ -173,6 +389,20 @@ export default function ProjectDetailScreen() {
                     placeholder="0.00"
                   />
                   <Button label="Continue to payment" onPress={handleContribute} loading={contributing} />
+                </Card>
+              ) : null}
+
+              {!isStaff && project.feedback_open ? (
+                <Card>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Project feedback</Text>
+                  <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                    Share how this project went for you.
+                  </Text>
+                  <Button
+                    label="Submit feedback"
+                    variant="secondary"
+                    onPress={() => router.push(`/feedback/${project.id}` as Href)}
+                  />
                 </Card>
               ) : null}
 
@@ -303,6 +533,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 12,
     lineHeight: 20,
+  },
+  rsvpRow: {
+    gap: 8,
   },
   success: {
     fontWeight: '600',

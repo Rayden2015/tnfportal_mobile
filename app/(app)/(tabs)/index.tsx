@@ -75,8 +75,8 @@ export default function HomeScreen() {
           </Text>
           <Text style={[styles.cardHint, { color: colors.textMuted }]}>
             {isStaff
-              ? 'Use Projects and Attendance tabs to manage programs and volunteer sessions.'
-              : 'Use Check-in to record attendance at your assigned projects.'}
+              ? 'Use Projects to manage programs. Community covers posts, team, and alerts.'
+              : 'Open Projects to check in or RSVP. Community has posts, volunteers, and alerts.'}
           </Text>
         </Card>
       </ScrollView>

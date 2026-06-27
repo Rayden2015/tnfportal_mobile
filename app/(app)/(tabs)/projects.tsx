@@ -1,13 +1,24 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { Link, useFocusEffect, useRouter, type Href } from 'expo-router';
 
+import { SegmentTabs } from '@/components/SegmentTabs';
 import { Button, Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { Project } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { sortProjectsByLatest } from '@/src/utils/projects';
+
+type ProjectFilter = 'all' | 'mine';
+
+function formatProjectDate(project: Project) {
+  if (project.start_date && project.end_date) {
+    return `${project.start_date} → ${project.end_date}`;
+  }
+  return project.start_date ?? project.end_date ?? 'Date TBC';
+}
 
 export default function ProjectsScreen() {
   const { token, tenantSlug, hasAnyRole } = useAuth();
@@ -16,7 +27,9 @@ export default function ProjectsScreen() {
   const colors = Colors[scheme];
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
 
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [filter, setFilter] = useState<ProjectFilter>('all');
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
+  const [myProjectIds, setMyProjectIds] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,18 +40,26 @@ export default function ProjectsScreen() {
     setError(null);
 
     try {
-      if (isStaff) {
-        const result = await api.listProjects(auth);
-        setProjects(result.items);
-      } else {
-        setProjects(await api.listMyProjects(auth));
-      }
+      const [all, mine] = await Promise.all([
+        api.listAllProjects(auth),
+        api.listMyProjects(auth).catch(() => [] as Project[]),
+      ]);
+      const mineIds = new Set(mine.map((project) => project.id));
+      setAllProjects(
+        sortProjectsByLatest(
+          all.map((project) => ({
+            ...project,
+            is_mine: mineIds.has(project.id),
+          })),
+        ),
+      );
+      setMyProjectIds(mineIds);
     } catch (err) {
       setError(formatApiError(err));
     } finally {
       setLoading(false);
     }
-  }, [token, tenantSlug, isStaff]);
+  }, [token, tenantSlug]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,26 +73,51 @@ export default function ProjectsScreen() {
     setRefreshing(false);
   };
 
+  const visibleProjects = useMemo(() => {
+    if (filter === 'mine') {
+      return allProjects.filter((project) => myProjectIds.has(project.id));
+    }
+    return allProjects;
+  }, [allProjects, filter, myProjectIds]);
+
   return (
     <Screen style={styles.container}>
-      <Title>{isStaff ? 'All projects' : 'My projects'}</Title>
-      <Subtitle>Programs you can view or volunteer on</Subtitle>
+      <Title>Projects</Title>
+      <Subtitle>Latest first — tap a project to check in, RSVP, or review details</Subtitle>
+
       {isStaff ? (
         <View style={styles.createRow}>
           <Button label="New project" onPress={() => router.push('/project/create' as Href)} />
         </View>
       ) : null}
+
+      <SegmentTabs
+        tabs={[
+          { key: 'all', label: 'All projects' },
+          { key: 'mine', label: 'My projects' },
+        ]}
+        active={filter}
+        onChange={setFilter}
+        badges={{ mine: myProjectIds.size }}
+      />
+
       {error ? <ErrorBanner message={error} /> : null}
 
       <FlatList
-        data={projects}
+        data={visibleProjects}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
         ListEmptyComponent={
           !loading ? (
             <EmptyState
-              title="No projects yet"
-              message={isStaff ? 'Create your first project with the button above.' : 'You are not assigned to any projects.'}
+              title={filter === 'mine' ? 'No assigned projects' : 'No projects yet'}
+              message={
+                filter === 'mine'
+                  ? 'Switch to All projects to browse everything in your organization.'
+                  : isStaff
+                    ? 'Create your first project with the button above.'
+                    : 'Projects will appear here when your organization publishes them.'
+              }
             />
           ) : null
         }
@@ -79,13 +125,22 @@ export default function ProjectsScreen() {
           <Link href={`/project/${item.id}`} asChild>
             <Pressable>
               <Card>
-                <Text style={[styles.projectTitle, { color: colors.text }]}>{item.title}</Text>
+                <View style={styles.cardHeader}>
+                  <Text style={[styles.projectTitle, { color: colors.text }]}>{item.title}</Text>
+                  {item.is_mine ? (
+                    <View style={styles.mineBadge}>
+                      <Text style={styles.mineBadgeText}>Mine</Text>
+                    </View>
+                  ) : null}
+                </View>
                 {item.location ? (
                   <Text style={[styles.meta, { color: colors.textMuted }]}>{item.location}</Text>
                 ) : null}
+                <Text style={[styles.meta, { color: colors.textMuted }]}>{formatProjectDate(item)}</Text>
                 <Text style={[styles.meta, { color: colors.textMuted }]}>
-                  {item.status ?? 'active'}
-                  {item.start_date ? ` · ${item.start_date}` : ''}
+                  {(item.status ?? 'active').replace(/_/g, ' ')}
+                  {item.interest_open ? ' · RSVP open' : ''}
+                  {item.feedback_open ? ' · Feedback open' : ''}
                 </Text>
               </Card>
             </Pressable>
@@ -103,10 +158,28 @@ const styles = StyleSheet.create({
   createRow: {
     marginBottom: 12,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginBottom: 4,
+  },
   projectTitle: {
+    flex: 1,
     fontSize: 17,
     fontWeight: '700',
-    marginBottom: 4,
+  },
+  mineBadge: {
+    backgroundColor: '#fff7ed',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  mineBadgeText: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: '700',
   },
   meta: {
     fontSize: 14,

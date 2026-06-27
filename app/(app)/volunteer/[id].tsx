@@ -46,7 +46,13 @@ export default function VolunteerDetailScreen() {
             {volunteer.phone ? <FieldRow label="Phone" value={volunteer.phone} colors={colors} /> : null}
             {volunteer.city ? <FieldRow label="City" value={volunteer.city} colors={colors} /> : null}
             {volunteer.bio ? <FieldRow label="Bio" value={volunteer.bio} colors={colors} /> : null}
-            {volunteer.skills ? <FieldRow label="Skills" value={volunteer.skills} colors={colors} /> : null}
+            {volunteer.skills ? (
+              <FieldRow
+                label="Skills"
+                value={Array.isArray(volunteer.skills) ? volunteer.skills.join(', ') : volunteer.skills}
+                colors={colors}
+              />
+            ) : null}
             <FieldRow
               label="Profile completion"
               value={`${volunteer.profile_completion_percentage ?? 0}%`}

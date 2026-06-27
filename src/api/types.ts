@@ -73,6 +73,9 @@ export interface Project {
   volunteers_count?: number;
   location_beneficiary_id?: number | null;
   program_type_label?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  is_mine?: boolean;
 }
 
 export interface ProgramTypeOption {
@@ -134,6 +137,85 @@ export interface MessageComposeResult {
   message_ids: number[];
 }
 
+export interface VolunteerProfileOptions {
+  genders: Record<string, string>;
+  education: Record<string, string>;
+  preferred_roles: Record<string, string>;
+  interests: Record<string, string>;
+  availability_days: Record<string, string>;
+  availability_times: Record<string, string>;
+  tshirt_sizes: Record<string, string>;
+}
+
+export interface VolunteerProfileResult extends Volunteer {
+  profile_options?: VolunteerProfileOptions;
+}
+
+export interface ConsentStatus {
+  consent_status?: string | null;
+  consent_requested_at?: string | null;
+  consent_responded_at?: string | null;
+  has_dues_configured: boolean;
+  can_respond: boolean;
+}
+
+export interface FeedbackProjectItem {
+  id: number;
+  title: string;
+  description?: string | null;
+  status?: string | null;
+  feedback_open?: boolean;
+  end_date?: string | null;
+}
+
+export interface MyFeedbackResult {
+  pending: FeedbackProjectItem[];
+  submitted: Array<{
+    project: FeedbackProjectItem;
+    feedback_id?: number | null;
+    submitted_at?: string | null;
+  }>;
+}
+
+export interface FeedbackFormSchema {
+  project: FeedbackProjectItem;
+  rating_fields: Record<string, string>;
+  open_fields: Record<string, string>;
+  nps_question: string;
+  nps_min: number;
+  nps_max: number;
+}
+
+export interface ProjectInterestState {
+  interest_open: boolean;
+  statuses: Record<string, string>;
+  current: {
+    status: string;
+    note?: string | null;
+    responded_at?: string | null;
+  } | null;
+}
+
+export interface CommunityPost {
+  id: number;
+  body?: string | null;
+  excerpt?: string;
+  author?: { id?: number; name?: string };
+  media?: Array<{ id: number; type: string; url: string }>;
+  comments_count?: number;
+  top_level_comments?: CommunityComment[];
+  published_at?: string | null;
+}
+
+export interface CommunityComment {
+  id: number;
+  body: string;
+  author?: { id?: number; name?: string };
+  parent_id?: number | null;
+  replies?: CommunityComment[];
+  created_at?: string | null;
+}
+
 export interface Volunteer {
   id: number;
   name: string;
@@ -144,13 +226,33 @@ export interface Volunteer {
   country?: string | null;
   profile_photo_url?: string | null;
   profile_completion_percentage?: number;
-  skills?: string | null;
+  performance_score?: number | null;
+  performance_grade?: string | null;
+  consent_status?: string | null;
+  occupation?: string | null;
+  employer?: string | null;
+  industry?: string | null;
+  years_of_experience?: number | null;
+  highest_education?: string | null;
+  linkedin_url?: string | null;
+  nationality?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
+  emergency_contact_relationship?: string | null;
+  skills?: string | string[] | null;
   languages_spoken?: string | null;
   interests?: string[];
   preferred_roles?: string[];
   availability_days?: string[];
   availability_times?: string[];
   hours_per_week_available?: number | null;
+  tshirt_size?: string | null;
+  can_travel?: boolean | null;
+  has_own_transport?: boolean | null;
+  willing_remote?: boolean | null;
+  has_volunteered_before?: boolean | null;
+  previous_experience?: string | null;
+  motivation?: string | null;
 }
 
 export interface Attendance {

@@ -70,3 +70,36 @@ export async function apiRequest<T>(
 
   return json as ApiResponse<T>;
 }
+
+export async function apiUpload<T>(
+  path: string,
+  formData: FormData,
+  { token, tenantSlug, method = 'POST' }: { token?: string | null; tenantSlug?: string | null; method?: string } = {},
+): Promise<ApiResponse<T>> {
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (tenantSlug) {
+    headers[TENANT_HEADER] = tenantSlug;
+  }
+
+  const response = await fetch(buildUrl(path), {
+    method,
+    headers,
+    body: formData,
+  });
+
+  const text = await response.text();
+  const json = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new ApiError(response.status, json ?? { message: response.statusText });
+  }
+
+  return json as ApiResponse<T>;
+}

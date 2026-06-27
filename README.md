@@ -8,17 +8,10 @@ Cross-platform mobile app (iOS + Android) for [TNF Portal](../tnfportal_web), bu
 |------|-----------|---------------------------|
 | Auth | Login with tenant slug + Sanctum bearer token; sign out all devices | Same |
 | Home | Dashboard summary | Dashboard summary |
-| Projects | My assigned projects | All projects + **bulk check-in roster**, **create/edit/delete** |
-| Attendance | Self check-in/out with optional GPS, **offline queue** (check-in + check-out) | View records, open detail, check-out, delete |
-| Volunteers | — | Directory + volunteer detail |
-| Dues | Outstanding balance, history, pay via Kowri/payment link | — |
-| Polls | List surveys, submit responses (text, choice, rating, NPS, scale) | Same |
-| Giving / Finance | My donation history + lifetime summary | Org donations + expenses (requires `donations.view` / `expenses.view`) |
-| Project contribute | Online contribution toward a project (Kowri / payment link) | — |
-| Notifications | List, mark read, **preference settings** | List, mark read, **preference settings** |
-| Messages | — | Inbox, compose (SMS/WhatsApp/email), message detail |
-| Profile | View/update volunteer profile, sign out | Account info, sign out |
-| Push | Expo push token registration (persisted on backend) | Same |
+| Projects | Assigned projects — tap for check-in, RSVP, feedback, contribute | All projects + create/edit, bulk check-in roster |
+| Community | Posts, team directory, notifications (badge on tab) | Same |
+| More | Check-in, polls, giving, feedback, consent, dues, settings | Attendance, polls, finance, messages, settings |
+| Profile | Dues status, volunteer profile, account actions | Account info + settings |
 
 ## Prerequisites
 
@@ -71,7 +64,9 @@ This usually means Metro opened on a **second port** while an old server is stil
    ```bash
    npm run ios
    ```
-   Or manually: `npx expo start --localhost`, then press `i`.
+   Or manually: `npx expo start --lan --ios`.
+
+   On some Mac setups, `--localhost` binds Metro to IPv6 only (`::1`) while the simulator requests `127.0.0.1`, which causes a red “Could not connect to development server” screen. Use `--lan` instead.
 
 If it still fails, open **Expo Go** inside the simulator and enter the URL shown in the terminal (e.g. `exp://127.0.0.1:8081`).
 
@@ -112,7 +107,11 @@ All v1 endpoints from the Postman collection are wrapped in `src/api/index.ts`:
 - `GET /api/v1/me/donations`, `GET /api/v1/donations`, `GET /api/v1/expenses`
 - `POST /api/v1/projects/{id}/contribute`
 - `GET/POST /api/v1/me/dues`, push token registration
-- `PUT /api/v1/me/volunteer-profile`
+- `GET/PUT /api/v1/me/volunteer-profile`, photo upload/delete
+- `GET/POST /api/v1/me/consent`, `PUT /api/v1/me/password`
+- `GET/POST /api/v1/me/feedback`, project feedback forms
+- `GET/POST /api/v1/me/projects/{id}/interest` (RSVP)
+- `GET/POST /api/v1/community/posts`, comments
 
 Authenticated requests send:
 
@@ -154,7 +153,6 @@ eas build --profile development --platform ios
 
 ## Next phases
 
-- Community feed, groups
 - Biometric device integration (hardware-specific)
 - Full web parity for admin modules (donors CRUD, beneficiaries, assets, billing, etc.)
 # tnfportal_mobile

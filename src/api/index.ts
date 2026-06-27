@@ -1,4 +1,4 @@
-import { apiRequest } from '@/src/api/client';
+import { apiRequest, apiUpload } from '@/src/api/client';
 import type {
   Attendance,
   AttendanceRoster,
@@ -24,6 +24,14 @@ import type {
   MessageTemplate,
   MessageComposePayload,
   MessageComposeResult,
+  VolunteerProfileResult,
+  VolunteerProfileOptions,
+  ConsentStatus,
+  MyFeedbackResult,
+  FeedbackFormSchema,
+  ProjectInterestState,
+  CommunityPost,
+  CommunityComment,
 } from '@/src/api/types';
 
 type AuthContext = {
@@ -70,16 +78,32 @@ export async function getMe(auth: AuthContext) {
   return result.data;
 }
 
-export async function listProjects(auth: AuthContext, perPage = 15) {
+export async function listProjects(auth: AuthContext, perPage = 15, page = 1) {
   const result = await apiRequest<Project[]>('/api/v1/projects', {
     ...authHeaders(auth),
-    query: { per_page: perPage },
+    query: { per_page: perPage, page },
   });
   return { items: result.data, meta: result.meta as PaginationMeta | undefined };
 }
 
-export async function listMyProjects(auth: AuthContext) {
-  const result = await apiRequest<Project[]>('/api/v1/projects/mine', authHeaders(auth));
+export async function listAllProjects(auth: AuthContext, perPage = 50) {
+  const first = await listProjects(auth, perPage, 1);
+  const items = [...first.items];
+  const lastPage = first.meta?.last_page ?? 1;
+
+  for (let page = 2; page <= lastPage; page += 1) {
+    const next = await listProjects(auth, perPage, page);
+    items.push(...next.items);
+  }
+
+  return items;
+}
+
+export async function listMyProjects(auth: AuthContext, perPage = 50) {
+  const result = await apiRequest<Project[]>('/api/v1/projects/mine', {
+    ...authHeaders(auth),
+    query: { per_page: perPage },
+  });
   return result.data;
 }
 
@@ -266,15 +290,157 @@ export async function markAllNotificationsRead(auth: AuthContext) {
   });
 }
 
-export async function getVolunteerProfile(auth: AuthContext) {
-  const result = await apiRequest<Volunteer>('/api/v1/me/volunteer-profile', authHeaders(auth));
-  return result.data;
+export async function getVolunteerProfile(auth: AuthContext): Promise<VolunteerProfileResult> {
+  const result = await apiRequest<{
+    volunteer: Volunteer;
+    profile_completion_percentage: number;
+    options: VolunteerProfileOptions;
+  }>('/api/v1/me/volunteer-profile', authHeaders(auth));
+
+  return {
+    ...result.data.volunteer,
+    profile_completion_percentage: result.data.profile_completion_percentage,
+    profile_options: result.data.options,
+  };
 }
 
 export async function updateVolunteerProfile(auth: AuthContext, payload: Partial<Volunteer>) {
+  const body = {
+    ...payload,
+    skills: Array.isArray(payload.skills) ? payload.skills.join(', ') : payload.skills,
+    languages_spoken: Array.isArray(payload.languages_spoken)
+      ? payload.languages_spoken.join(', ')
+      : payload.languages_spoken,
+  };
   const result = await apiRequest<Volunteer>('/api/v1/me/volunteer-profile', {
     method: 'PUT',
-    body: payload,
+    body,
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function uploadVolunteerPhoto(auth: AuthContext, uri: string, fileName = 'photo.jpg', mimeType = 'image/jpeg') {
+  const formData = new FormData();
+  formData.append('profile_photo', {
+    uri,
+    name: fileName,
+    type: mimeType,
+  } as unknown as Blob);
+  const result = await apiUpload<Volunteer>('/api/v1/me/volunteer-profile/photo', formData, authHeaders(auth));
+  return result.data;
+}
+
+export async function deleteVolunteerPhoto(auth: AuthContext) {
+  const result = await apiRequest<Volunteer>('/api/v1/me/volunteer-profile/photo', {
+    method: 'DELETE',
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function getConsentStatus(auth: AuthContext) {
+  const result = await apiRequest<ConsentStatus>('/api/v1/me/consent', authHeaders(auth));
+  return result.data;
+}
+
+export async function approveConsent(auth: AuthContext, notes?: string) {
+  const result = await apiRequest<{ message: string; consent_status: string }>('/api/v1/me/consent/approve', {
+    method: 'POST',
+    body: notes ? { notes } : {},
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function declineConsent(auth: AuthContext, notes?: string) {
+  const result = await apiRequest<{ message: string; consent_status: string }>('/api/v1/me/consent/decline', {
+    method: 'POST',
+    body: notes ? { notes } : {},
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function updatePassword(auth: AuthContext, currentPassword: string, password: string, passwordConfirmation: string) {
+  const result = await apiRequest<{ message: string }>('/api/v1/me/password', {
+    method: 'PUT',
+    body: {
+      current_password: currentPassword,
+      password,
+      password_confirmation: passwordConfirmation,
+    },
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function listMyFeedback(auth: AuthContext) {
+  const result = await apiRequest<MyFeedbackResult>('/api/v1/me/feedback', authHeaders(auth));
+  return result.data;
+}
+
+export async function getFeedbackForm(auth: AuthContext, projectId: number) {
+  const result = await apiRequest<FeedbackFormSchema>(`/api/v1/me/feedback/projects/${projectId}`, authHeaders(auth));
+  return result.data;
+}
+
+export async function submitProjectFeedback(
+  auth: AuthContext,
+  projectId: number,
+  payload: Record<string, string | number | boolean | null | undefined>,
+) {
+  const result = await apiRequest<{ message: string; feedback_id: number }>(
+    `/api/v1/me/feedback/projects/${projectId}`,
+    {
+      method: 'POST',
+      body: payload,
+      ...authHeaders(auth),
+    },
+  );
+  return result.data;
+}
+
+export async function getProjectInterest(auth: AuthContext, projectId: number) {
+  const result = await apiRequest<ProjectInterestState>(`/api/v1/me/projects/${projectId}/interest`, authHeaders(auth));
+  return result.data;
+}
+
+export async function saveProjectInterest(auth: AuthContext, projectId: number, status: string, note?: string) {
+  const result = await apiRequest<{ message: string; status: string }>(`/api/v1/me/projects/${projectId}/interest`, {
+    method: 'POST',
+    body: { status, note },
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function listCommunityPosts(auth: AuthContext, perPage = 15) {
+  const result = await apiRequest<CommunityPost[]>('/api/v1/community/posts', {
+    ...authHeaders(auth),
+    query: { per_page: perPage },
+  });
+  return { items: result.data, meta: result.meta as PaginationMeta | undefined };
+}
+
+export async function getCommunityPost(auth: AuthContext, postId: number) {
+  const result = await apiRequest<CommunityPost>(`/api/v1/community/posts/${postId}`, authHeaders(auth));
+  return result.data;
+}
+
+export async function createCommunityPost(auth: AuthContext, body: string) {
+  const result = await apiRequest<CommunityPost>('/api/v1/community/posts', {
+    method: 'POST',
+    body: { body },
+    ...authHeaders(auth),
+  });
+  return result.data;
+}
+
+export async function createCommunityComment(auth: AuthContext, postId: number, body: string, parentId?: number) {
+  const result = await apiRequest<CommunityComment>(`/api/v1/community/posts/${postId}/comments`, {
+    method: 'POST',
+    body: { body, parent_id: parentId },
     ...authHeaders(auth),
   });
   return result.data;
