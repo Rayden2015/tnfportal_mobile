@@ -3,10 +3,12 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'rea
 import { useRouter, type Href } from 'expo-router';
 
 import { ContactLink } from '@/components/ContactLink';
+import { AdBanner } from '@/components/AdBanner';
 import { NotificationsList } from '@/components/NotificationsList';
 import { SegmentTabs } from '@/components/SegmentTabs';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { CardListSkeleton, TeamListSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -79,30 +81,37 @@ export default function CommunityScreen() {
           <Pressable onPress={() => router.push('/community/compose' as Href)} style={styles.composeLink}>
             <Text style={{ color: Colors.primary, fontWeight: '600' }}>+ New post</Text>
           </Pressable>
-          <FlatList
-            data={posts}
-            keyExtractor={(item) => String(item.id)}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-            ListEmptyComponent={
-              !loading ? <EmptyState title="No posts yet" message="Be the first to share an update." /> : null
-            }
-            renderItem={({ item }) => (
-              <Pressable onPress={() => router.push(`/community/${item.id}` as Href)}>
-                <Card>
-                  <Text style={[styles.author, { color: colors.textMuted }]}>{item.author?.name ?? 'Team member'}</Text>
-                  <Text style={[styles.body, { color: colors.text }]}>{item.excerpt || item.body || 'Shared photos'}</Text>
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
-                    {item.comments_count ?? 0} comment{(item.comments_count ?? 0) === 1 ? '' : 's'}
-                  </Text>
-                </Card>
-              </Pressable>
-            )}
-          />
+          {loading && posts.length === 0 ? (
+            <CardListSkeleton />
+          ) : (
+            <FlatList
+              data={posts}
+              keyExtractor={(item) => String(item.id)}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+              ListEmptyComponent={
+                !loading ? <EmptyState title="No posts yet" message="Be the first to share an update." /> : null
+              }
+              renderItem={({ item }) => (
+                <Pressable onPress={() => router.push(`/community/${item.id}` as Href)}>
+                  <Card>
+                    <Text style={[styles.author, { color: colors.textMuted }]}>{item.author?.name ?? 'Team member'}</Text>
+                    <Text style={[styles.body, { color: colors.text }]}>{item.excerpt || item.body || 'Shared photos'}</Text>
+                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                      {item.comments_count ?? 0} comment{(item.comments_count ?? 0) === 1 ? '' : 's'}
+                    </Text>
+                  </Card>
+                </Pressable>
+              )}
+            />
+          )}
         </>
       ) : null}
 
       {tab === 'team' ? (
-        <FlatList
+        loading && volunteers.length === 0 ? (
+          <TeamListSkeleton />
+        ) : (
+          <FlatList
           data={volunteers}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
@@ -130,6 +139,7 @@ export default function CommunityScreen() {
             </Card>
           )}
         />
+        )
       ) : null}
 
       {tab === 'chat' ? (
@@ -143,6 +153,8 @@ export default function CommunityScreen() {
           <NotificationsList embedded />
         </View>
       ) : null}
+
+      <AdBanner />
     </Screen>
   );
 }

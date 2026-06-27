@@ -15,6 +15,7 @@ import type { LoginPayload, Tenant, User } from '@/src/api/types';
 import { DEFAULT_TENANT_SLUG } from '@/src/config';
 import { clearAllCache } from '@/src/cache/queryCache';
 import { deleteStoredItem, getStoredItem, setStoredItem } from '@/src/storage/secureStorage';
+import { logAnalyticsEvent } from '@/src/monitoring/analytics';
 
 const STORAGE_KEYS = {
   token: 'tnf_token',
@@ -150,6 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTenantSlug(result.tenant.slug);
     setUser(result.user);
     setTenant(result.tenant);
+    void logAnalyticsEvent('login', { method: 'email', tenant_slug: result.tenant.slug });
   }, []);
 
   const logout = useCallback(async () => {

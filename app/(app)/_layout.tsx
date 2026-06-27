@@ -1,6 +1,7 @@
 import { Redirect, Stack } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 
+import { AppLoadingSkeleton } from '@/components/Skeleton';
 import { useAuth } from '@/src/context/AuthContext';
 import { detailScreenOptions, tabsGroupTitle } from '@/src/navigation/stackOptions';
 
@@ -9,8 +10,8 @@ export default function AppLayout() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#EA580C" />
+      <View style={{ flex: 1 }}>
+        <AppLoadingSkeleton />
       </View>
     );
   }

@@ -13,6 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { Button, Card, EmptyState, ErrorBanner, Screen } from '@/components/ui';
+import { ProjectMediaSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -110,7 +111,7 @@ export default function ProjectMediaViewerScreen() {
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}
-          {loading && !project ? <EmptyState title="Loading media…" /> : null}
+          {loading && !project ? <ProjectMediaSkeleton /> : null}
 
           {!loading && project && media.length === 0 ? (
             <EmptyState title="No media yet" message="Photos and files for this project will appear here." />

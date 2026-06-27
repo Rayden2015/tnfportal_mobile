@@ -338,9 +338,26 @@ export interface PendingCheckOut {
   created_at: string;
 }
 
+export interface NotificationPreferenceChannel {
+  key: string;
+  label: string;
+  description?: string;
+  selectable: boolean;
+  enabled: boolean;
+  default?: boolean;
+}
+
+export interface NotificationPreferenceTypeRow {
+  type: string;
+  label: string;
+  description?: string;
+  channels: Record<string, NotificationPreferenceChannel>;
+}
+
 export interface NotificationPreferencesMatrix {
-  preferences: Record<string, Record<string, boolean>>;
-  channels: Record<string, string>;
+  preferences: NotificationPreferenceTypeRow[];
+  channels?: Record<string, { label?: string; description?: string; selectable?: boolean }>;
+  message?: string;
 }
 
 export interface DuesSummary {

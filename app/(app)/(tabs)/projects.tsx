@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Link, useRouter, type Href } from 'expo-router';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 
+import { ProjectListCard } from '@/components/ProjectListCard';
+import { ProjectListSkeleton } from '@/components/Skeleton';
 import { SegmentTabs } from '@/components/SegmentTabs';
-import { Button, Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { Button, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { Project } from '@/src/api/types';
 import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
@@ -20,18 +21,9 @@ type ProjectsCache = {
   myProjectIds: number[];
 };
 
-function formatProjectDate(project: Project) {
-  if (project.start_date && project.end_date) {
-    return `${project.start_date} → ${project.end_date}`;
-  }
-  return project.start_date ?? project.end_date ?? 'Date TBC';
-}
-
 export default function ProjectsScreen() {
   const { token, tenantSlug, hasAnyRole } = useAuth();
   const router = useRouter();
-  const scheme = useColorScheme() ?? 'light';
-  const colors = Colors[scheme];
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
 
   const [filter, setFilter] = useState<ProjectFilter>('all');
@@ -100,50 +92,33 @@ export default function ProjectsScreen() {
 
       {error ? <ErrorBanner message={error} /> : null}
 
-      <FlatList
-        data={visibleProjects}
-        keyExtractor={(item) => String(item.id)}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-        ListEmptyComponent={
-          !loading ? (
-            <EmptyState
-              title={filter === 'mine' ? 'No assigned projects' : 'No projects yet'}
-              message={
-                filter === 'mine'
-                  ? 'Switch to All projects to browse everything in your organization.'
-                  : isStaff
-                    ? 'Create your first project with the button above.'
-                    : 'Projects will appear here when your organization publishes them.'
-              }
-            />
-          ) : null
-        }
-        renderItem={({ item }) => (
-          <Link href={`/project/${item.id}`} asChild>
-            <Pressable>
-              <Card>
-                <View style={styles.cardHeader}>
-                  <Text style={[styles.projectTitle, { color: colors.text }]}>{item.title}</Text>
-                  {item.is_mine ? (
-                    <View style={styles.mineBadge}>
-                      <Text style={styles.mineBadgeText}>Mine</Text>
-                    </View>
-                  ) : null}
-                </View>
-                {item.location ? (
-                  <Text style={[styles.meta, { color: colors.textMuted }]}>{item.location}</Text>
-                ) : null}
-                <Text style={[styles.meta, { color: colors.textMuted }]}>{formatProjectDate(item)}</Text>
-                <Text style={[styles.meta, { color: colors.textMuted }]}>
-                  {(item.status ?? 'active').replace(/_/g, ' ')}
-                  {item.interest_open ? ' · RSVP open' : ''}
-                  {item.feedback_open ? ' · Feedback open' : ''}
-                </Text>
-              </Card>
-            </Pressable>
-          </Link>
-        )}
-      />
+      {loading && allProjects.length === 0 ? (
+        <ProjectListSkeleton />
+      ) : (
+        <FlatList
+          data={visibleProjects}
+          keyExtractor={(item) => String(item.id)}
+          contentContainerStyle={styles.listContent}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          ListEmptyComponent={
+            !loading ? (
+              <EmptyState
+                title={filter === 'mine' ? 'No assigned projects' : 'No projects yet'}
+                message={
+                  filter === 'mine'
+                    ? 'Switch to All projects to browse everything in your organization.'
+                    : isStaff
+                      ? 'Create your first project with the button above.'
+                      : 'Projects will appear here when your organization publishes them.'
+                }
+              />
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <ProjectListCard project={item} onPress={() => router.push(`/project/${item.id}` as Href)} />
+          )}
+        />
+      )}
     </Screen>
   );
 }
@@ -155,31 +130,7 @@ const styles = StyleSheet.create({
   createRow: {
     marginBottom: 12,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 8,
-    marginBottom: 4,
-  },
-  projectTitle: {
-    flex: 1,
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  mineBadge: {
-    backgroundColor: '#fff7ed',
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  mineBadgeText: {
-    color: Colors.primary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  meta: {
-    fontSize: 14,
-    marginTop: 2,
+  listContent: {
+    paddingBottom: 24,
   },
 });

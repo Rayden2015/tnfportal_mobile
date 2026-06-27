@@ -1,8 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
+import { ProjectMetaRow } from '@/components/ProjectMetaRow';
+import { ProjectDetailSkeleton, RosterListSkeleton } from '@/components/Skeleton';
 import { Button, Card, EmptyState, ErrorBanner, FieldLabel, Input, Screen } from '@/components/ui';
 import { ProjectMediaGrid } from '@/components/ProjectMediaGrid';
 import Colors from '@/constants/Colors';
@@ -13,6 +16,11 @@ import { formatApiError, useAuth } from '@/src/context/AuthContext';
 import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
 import { queueCheckIn } from '@/src/offline/checkInQueue';
 import { queueCheckOut } from '@/src/offline/checkOutQueue';
+import {
+  formatProjectDateRange,
+  formatProjectStatus,
+  getProgramTypeIcon,
+} from '@/src/utils/projects';
 
 export default function ProjectDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -24,6 +32,7 @@ export default function ProjectDetailScreen() {
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
 
   const [project, setProject] = useState<Project | null>(null);
+  const [loading, setLoading] = useState(true);
   const [roster, setRoster] = useState<AttendanceRoster | null>(null);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [notes, setNotes] = useState('');
@@ -45,6 +54,7 @@ export default function ProjectDetailScreen() {
 
   const load = useCallback(async () => {
     if (!auth || !projectId) return;
+    setLoading(true);
     setError(null);
     try {
       setProject(await api.getProject(auth, projectId));
@@ -57,6 +67,8 @@ export default function ProjectDetailScreen() {
       }
     } catch (err) {
       setError(formatApiError(err));
+    } finally {
+      setLoading(false);
     }
   }, [auth, projectId, isStaff]);
 
@@ -258,6 +270,7 @@ export default function ProjectDetailScreen() {
   const checkedIntoThisProject = activeSession?.project_id === projectId;
   const checkedIntoOtherProject =
     activeSession != null && activeSession.project_id != null && activeSession.project_id !== projectId;
+  const statusPresentation = project ? formatProjectStatus(project.status) : null;
 
   const handleBulkCheckIn = async () => {
     if (!auth || !projectId || selectedIds.length === 0) return;
@@ -284,15 +297,59 @@ export default function ProjectDetailScreen() {
         <ScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}
           {success ? <Text style={[styles.success, { color: colors.success }]}>{success}</Text> : null}
-          {!project && !error ? <EmptyState title="Loading project…" /> : null}
+          {loading && !project ? <ProjectDetailSkeleton /> : null}
 
           {project ? (
             <>
               <Card>
-                <Text style={[styles.title, { color: colors.text }]}>{project.title}</Text>
+                <View style={styles.hero}>
+                  <View style={styles.heroIconWrap}>
+                    <Ionicons
+                      name={getProgramTypeIcon(project.program_type)}
+                      size={28}
+                      color={Colors.primary}
+                    />
+                  </View>
+                  <View style={styles.heroCopy}>
+                    <Text style={[styles.title, { color: colors.text }]}>{project.title}</Text>
+                    {project.program_type_label || project.program_type ? (
+                      <Text style={[styles.programType, { color: colors.textMuted }]}>
+                        {project.program_type_label ??
+                          project.program_type?.replace(/_/g, ' ') ??
+                          'Project'}
+                      </Text>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.heroChips}>
+                  {statusPresentation ? (
+                    <View
+                      style={[
+                        styles.statusChip,
+                        { backgroundColor: statusPresentation.backgroundColor },
+                      ]}>
+                      <Text style={[styles.statusChipText, { color: statusPresentation.color }]}>
+                        {statusPresentation.label}
+                      </Text>
+                    </View>
+                  ) : null}
+                  {project.interest_open ? (
+                    <View style={[styles.statusChip, styles.rsvpChip]}>
+                      <Text style={[styles.statusChipText, styles.rsvpChipText]}>RSVP open</Text>
+                    </View>
+                  ) : null}
+                  {project.feedback_open ? (
+                    <View style={[styles.statusChip, styles.feedbackChip]}>
+                      <Text style={[styles.statusChipText, styles.feedbackChipText]}>Feedback open</Text>
+                    </View>
+                  ) : null}
+                </View>
+
                 {project.description ? (
                   <Text style={[styles.body, { color: colors.textMuted }]}>{project.description}</Text>
                 ) : null}
+
                 {isStaff ? (
                   <Button
                     label="Edit project"
@@ -301,18 +358,34 @@ export default function ProjectDetailScreen() {
                   />
                 ) : null}
               </Card>
+
               <Card>
-                <DetailRow label="Status" value={project.status ?? '—'} colors={colors} />
-                <DetailRow label="Location" value={project.location ?? '—'} colors={colors} />
-                <DetailRow
-                  label="Dates"
-                  value={[project.start_date, project.end_date].filter(Boolean).join(' → ') || '—'}
-                  colors={colors}
+                <Text style={[styles.detailsHeading, { color: colors.text }]}>Project details</Text>
+                <ProjectMetaRow
+                  icon="pulse-outline"
+                  label="Status"
+                  value={statusPresentation?.label ?? '—'}
+                  badge={statusPresentation ?? undefined}
                 />
-                <DetailRow
+                <ProjectMetaRow
+                  icon="location-outline"
+                  label="Location"
+                  value={project.location ?? 'Not specified'}
+                />
+                <ProjectMetaRow
+                  icon="calendar-outline"
+                  label="Schedule"
+                  value={formatProjectDateRange(project)}
+                />
+                <ProjectMetaRow
+                  icon="people-outline"
                   label="Volunteers"
-                  value={project.volunteers_count != null ? String(project.volunteers_count) : '—'}
-                  colors={colors}
+                  value={
+                    project.volunteers_count != null
+                      ? `${project.volunteers_count} assigned`
+                      : 'Not specified'
+                  }
+                  isLast
                 />
               </Card>
 
@@ -443,9 +516,7 @@ export default function ProjectDetailScreen() {
                     Select volunteers to check in for this project session.
                   </Text>
 
-                  {loadingRoster && !roster ? (
-                    <Text style={{ color: colors.textMuted, marginVertical: 12 }}>Loading roster…</Text>
-                  ) : null}
+                  {loadingRoster && !roster ? <RosterListSkeleton /> : null}
 
                   {roster && roster.volunteers.length === 0 ? (
                     <EmptyState title="No volunteers assigned" message="Assign volunteers to this project in the web portal." />
@@ -520,39 +591,74 @@ export default function ProjectDetailScreen() {
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  colors,
-}: {
-  label: string;
-  value: string;
-  colors: (typeof Colors)['light'];
-}) {
-  return (
-    <Text style={[styles.row, { color: colors.text }]}>
-      <Text style={{ color: colors.textMuted }}>{label}: </Text>
-      {value}
-    </Text>
-  );
-}
-
 const styles = StyleSheet.create({
   scroll: {
     paddingBottom: 32,
   },
+  hero: {
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 12,
+  },
+  heroIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#fff7ed',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
-    marginBottom: 8,
+    lineHeight: 28,
+  },
+  programType: {
+    fontSize: 14,
+    marginTop: 4,
+    textTransform: 'capitalize',
+  },
+  heroChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  statusChip: {
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  statusChipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  rsvpChip: {
+    backgroundColor: '#EFF6FF',
+  },
+  rsvpChipText: {
+    color: '#1D4ED8',
+  },
+  feedbackChip: {
+    backgroundColor: '#F5F3FF',
+  },
+  feedbackChipText: {
+    color: '#6D28D9',
+  },
+  detailsHeading: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 4,
   },
   body: {
     fontSize: 15,
     lineHeight: 22,
-  },
-  row: {
-    fontSize: 15,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 17,

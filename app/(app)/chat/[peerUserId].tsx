@@ -21,6 +21,7 @@ import {
   type ChatMessage,
 } from '@/src/firebase/chat';
 import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
+import { logAnalyticsEvent } from '@/src/monitoring/analytics';
 
 export default function ChatThreadScreen() {
   const { peerUserId, peerName, peerVolunteerId, peerPhotoUrl } = useLocalSearchParams<{
@@ -110,6 +111,7 @@ export default function ChatThreadScreen() {
         text: draft,
       });
       setDraft('');
+      void logAnalyticsEvent('chat_message_sent', { tenant_id: String(tenant.id) });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not send message.');
     } finally {

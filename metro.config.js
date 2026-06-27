@@ -1,7 +1,9 @@
-const { getDefaultConfig } = require('expo/metro-config');
+const {
+  getSentryExpoConfig
+} = require("@sentry/react-native/metro");
 
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getSentryExpoConfig(__dirname);
 
 // iOS Simulator fetches bundles via 127.0.0.1; default Expo host is IPv6-only (::1).
 config.server = {

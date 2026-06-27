@@ -3,6 +3,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { Button, Card, ErrorBanner, Input, Screen, Subtitle, Title } from '@/components/ui';
+import { FormSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -75,7 +76,7 @@ export default function PollDetailScreen() {
   if (loading && !poll) {
     return (
       <Screen>
-        <Text style={{ color: colors.textMuted }}>Loading poll…</Text>
+        <FormSkeleton />
       </Screen>
     );
   }

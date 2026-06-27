@@ -63,7 +63,28 @@
       ],
       "expo-sharing",
       "@react-native-firebase/app",
-      "@react-native-firebase/crashlytics"
+      [
+        "@react-native-firebase/crashlytics",
+        {
+          "crashlytics_debug_enabled": true
+        }
+      ],
+      "@react-native-firebase/analytics",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
+          "iosAppId": "ca-app-pub-3940256099942544~1458002511"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "tnfportal_mobile",
+          "organization": "infinixel"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -3,6 +3,10 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "react-native": {
+    "crashlytics_debug_enabled": true,
+    "analytics_auto_collection_enabled": true
+  },
   "functions": [
     {
       "source": "functions",

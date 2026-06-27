@@ -1,5 +1,7 @@
 import { API_BASE_URL, TENANT_HEADER } from '@/src/config';
 import type { ApiErrorBody, ApiResponse } from '@/src/api/types';
+import { applySentryTraceHeaders } from '@/src/monitoring/sentry';
+import { trackApiFailure } from '@/src/monitoring/index';
 
 export class ApiError extends Error {
   status: number;
@@ -55,6 +57,8 @@ export async function apiRequest<T>(
     headers[TENANT_HEADER] = tenantSlug;
   }
 
+  applySentryTraceHeaders(headers);
+
   const response = await fetch(buildUrl(path, query), {
     method,
     headers,
@@ -65,6 +69,7 @@ export async function apiRequest<T>(
   const json = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    trackApiFailure(path, response.status, json?.message ?? response.statusText);
     throw new ApiError(response.status, json ?? { message: response.statusText });
   }
 
@@ -88,6 +93,8 @@ export async function apiUpload<T>(
     headers[TENANT_HEADER] = tenantSlug;
   }
 
+  applySentryTraceHeaders(headers);
+
   const response = await fetch(buildUrl(path), {
     method,
     headers,
@@ -98,6 +105,7 @@ export async function apiUpload<T>(
   const json = text ? JSON.parse(text) : null;
 
   if (!response.ok) {
+    trackApiFailure(path, response.status, json?.message ?? response.statusText);
     throw new ApiError(response.status, json ?? { message: response.statusText });
   }
 

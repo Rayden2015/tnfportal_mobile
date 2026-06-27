@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-nat
 import { Stack, useFocusEffect, useRouter, type Href } from 'expo-router';
 
 import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { CardListSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -53,7 +54,10 @@ export default function FeedbackIndexScreen() {
         {error ? <ErrorBanner message={error} /> : null}
 
         <Text style={[styles.heading, { color: colors.text }]}>Pending</Text>
-        <FlatList
+        {loading && !data ? (
+          <CardListSkeleton count={3} />
+        ) : (
+          <FlatList
           data={data?.pending ?? []}
           keyExtractor={(item) => String(item.id)}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
@@ -67,6 +71,7 @@ export default function FeedbackIndexScreen() {
             </Pressable>
           )}
         />
+        )}
 
         {(data?.submitted?.length ?? 0) > 0 ? (
           <>

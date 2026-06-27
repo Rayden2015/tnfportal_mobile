@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { ContactLink } from '@/components/ContactLink';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Button, Card, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { FormSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -80,7 +81,7 @@ export default function VolunteerDetailScreen() {
             ) : null}
           </Card>
         ) : volunteerQuery.loading ? (
-          <Text style={{ color: colors.textMuted }}>Loading volunteer…</Text>
+          <FormSkeleton />
         ) : null}
       </ScrollView>
     </Screen>

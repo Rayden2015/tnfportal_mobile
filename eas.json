@@ -13,6 +13,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ngo.cipree.com"
+      },
       "android": {
         "buildType": "apk"
       }

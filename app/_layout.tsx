@@ -1,18 +1,29 @@
 import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 
+import { initializeMobileAds } from '@/src/ads/mobileAds';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { FirebaseProvider } from '@/src/context/FirebaseContext';
 import { usePushNotifications } from '@/src/hooks/usePushNotifications';
 import { useChatNotifications } from '@/src/hooks/useChatNotifications';
-import { clearMonitoringUser, setMonitoringUser } from '@/src/monitoring/crashlytics';
+import { MonitoringErrorBoundary } from '@/src/monitoring/MonitoringErrorBoundary';
+import { clearMonitoringUser, setMonitoringUser } from '@/src/monitoring/index';
+import { initSentry, Sentry } from '@/src/monitoring/sentry';
+import { useRouteAnalytics } from '@/src/monitoring/useRouteAnalytics';
 
-export { ErrorBoundary } from 'expo-router';
+initSentry();
+
+export { MonitoringErrorBoundary as ErrorBoundary };
 
 function AppServices() {
   usePushNotifications();
   useChatNotifications();
+  useRouteAnalytics();
   const { user, tenantSlug, isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    void initializeMobileAds();
+  }, []);
 
   useEffect(() => {
     if (isAuthenticated && user?.id) {
@@ -25,7 +36,7 @@ function AppServices() {
   return null;
 }
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   return (
     <AuthProvider>
       <FirebaseProvider>
@@ -37,4 +48,4 @@ export default function RootLayout() {
       </FirebaseProvider>
     </AuthProvider>
   );
-}
+});

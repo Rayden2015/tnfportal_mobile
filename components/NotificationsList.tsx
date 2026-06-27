@@ -3,6 +3,7 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, Text } from 'react-nat
 import { useFocusEffect } from 'expo-router';
 
 import { Card, EmptyState, ErrorBanner } from '@/components/ui';
+import { CardListSkeleton } from '@/components/Skeleton';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
@@ -80,7 +81,10 @@ export function NotificationsList({ embedded = false }: { embedded?: boolean }) 
         </Pressable>
       ) : null}
 
-      <FlatList
+      {loading && items.length === 0 ? (
+        <CardListSkeleton count={5} />
+      ) : (
+        <FlatList
         data={items}
         keyExtractor={(item) => item.id}
         scrollEnabled={!embedded}
@@ -101,6 +105,7 @@ export function NotificationsList({ embedded = false }: { embedded?: boolean }) 
           </Pressable>
         )}
       />
+      )}
     </>
   );
 }

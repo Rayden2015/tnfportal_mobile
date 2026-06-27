@@ -5,6 +5,7 @@ import {
   Text,
   TextInput,
   View,
+  type StyleProp,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -25,7 +26,7 @@ export function Card({
   testID,
 }: {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   testID?: string;
 }) {
   const scheme = useColorScheme() ?? 'light';
