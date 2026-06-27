@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { Link, useFocusEffect, useRouter, type Href } from 'expo-router';
+import { Link, useRouter, type Href } from 'expo-router';
 
 import { SegmentTabs } from '@/components/SegmentTabs';
 import { Button, Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
@@ -8,10 +8,17 @@ import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { Project } from '@/src/api/types';
-import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
+import { useAuth } from '@/src/context/AuthContext';
+import { useCachedQuery } from '@/src/hooks/useCachedQuery';
 import { sortProjectsByLatest } from '@/src/utils/projects';
 
 type ProjectFilter = 'all' | 'mine';
+
+type ProjectsCache = {
+  allProjects: Project[];
+  myProjectIds: number[];
+};
 
 function formatProjectDate(project: Project) {
   if (project.start_date && project.end_date) {
@@ -28,49 +35,39 @@ export default function ProjectsScreen() {
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
 
   const [filter, setFilter] = useState<ProjectFilter>('all');
-  const [allProjects, setAllProjects] = useState<Project[]>([]);
-  const [myProjectIds, setMyProjectIds] = useState<Set<number>>(new Set());
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const auth = token && tenantSlug ? { token, tenantSlug } : null;
 
-  const load = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    const auth = { token, tenantSlug };
-    setError(null);
-
-    try {
+  const projectsQuery = useCachedQuery<ProjectsCache>({
+    cacheKey: auth ? cacheKeys.projectsAll(auth.tenantSlug) : null,
+    enabled: Boolean(auth),
+    staleTimeMs: CACHE_TTL.projects,
+    queryFn: async () => {
       const [all, mine] = await Promise.all([
-        api.listAllProjects(auth),
-        api.listMyProjects(auth).catch(() => [] as Project[]),
+        api.listAllProjects(auth!),
+        api.listMyProjects(auth!).catch(() => [] as Project[]),
       ]);
       const mineIds = new Set(mine.map((project) => project.id));
-      setAllProjects(
-        sortProjectsByLatest(
+
+      return {
+        allProjects: sortProjectsByLatest(
           all.map((project) => ({
             ...project,
             is_mine: mineIds.has(project.id),
           })),
         ),
-      );
-      setMyProjectIds(mineIds);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [token, tenantSlug]);
+        myProjectIds: [...mineIds],
+      };
+    },
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  const allProjects = projectsQuery.data?.allProjects ?? [];
+  const myProjectIds = useMemo(() => new Set(projectsQuery.data?.myProjectIds ?? []), [projectsQuery.data?.myProjectIds]);
+  const loading = projectsQuery.loading;
+  const refreshing = projectsQuery.refreshing;
+  const error = projectsQuery.error;
 
   const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
+    await projectsQuery.refresh();
   };
 
   const visibleProjects = useMemo(() => {

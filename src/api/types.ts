@@ -76,6 +76,28 @@ export interface Project {
   created_at?: string | null;
   updated_at?: string | null;
   is_mine?: boolean;
+  media?: ProjectMedia[];
+  media_count?: number;
+}
+
+export interface ProjectMedia {
+  id: number;
+  url: string;
+  thumbnail_url: string;
+  original_filename?: string | null;
+  caption?: string | null;
+  description?: string | null;
+  media_type?: string | null;
+  mime_type?: string | null;
+  file_size?: number | null;
+  formatted_file_size?: string | null;
+  is_image: boolean;
+  is_pdf: boolean;
+  is_document: boolean;
+  is_video: boolean;
+  file_type?: string | null;
+  is_primary?: boolean;
+  sort_order?: number;
 }
 
 export interface ProgramTypeOption {
@@ -218,6 +240,7 @@ export interface CommunityComment {
 
 export interface Volunteer {
   id: number;
+  user_id?: number | null;
   name: string;
   email?: string | null;
   phone?: string | null;

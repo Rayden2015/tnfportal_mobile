@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { FeedbackFormSchema } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
 
 function RatingRow({
   label,
@@ -110,7 +111,7 @@ export default function FeedbackFormScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: schema.project.title }} />
+      <Stack.Screen options={detailScreenOptionsDynamic(schema.project.title, 'Feedback')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Title>{schema.project.title}</Title>

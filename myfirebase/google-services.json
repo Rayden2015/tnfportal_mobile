@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "806551073169",
+    "project_id": "tnf-portal",
+    "storage_bucket": "tnf-portal.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:806551073169:android:d90d69a5dae814ecb7aa30",
+        "android_client_info": {
+          "package_name": "com.infinixel.cipreengo"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "806551073169-sc6nsj8n68a4bn08d9rr4gjmfblph2u5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAda8z_vcRVkfGZ_CMC_yc_0lv5qFZt6ng"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "806551073169-sc6nsj8n68a4bn08d9rr4gjmfblph2u5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

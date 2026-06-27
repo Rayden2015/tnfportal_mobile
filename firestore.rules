@@ -1,0 +1,61 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function tenantId() {
+      return string(request.auth.token.tenant_id);
+    }
+
+    function laravelUserId() {
+      return string(request.auth.token.user_id);
+    }
+
+    function isTenantMember(tId) {
+      return isSignedIn() && tenantId() == string(tId);
+    }
+
+    // Support Firebase auth UIDs (tenant_1_user_5) and legacy Laravel user IDs ("5").
+    function isChatParticipant(participantUserIds) {
+      return isSignedIn() && (
+        request.auth.uid in participantUserIds
+        || laravelUserId() in participantUserIds
+      );
+    }
+
+    function chatDocPath(tId, chatId) {
+      return /databases/$(database)/documents/tenants/$(tId)/directChats/$(chatId);
+    }
+
+    // Volunteer direct messages — tenant scoped
+    match /tenants/{tId}/directChats/{chatId} {
+      // Allow get on missing docs so clients can create a new thread.
+      allow get: if isTenantMember(tId)
+        && (!exists(chatDocPath(tId, chatId))
+          || isChatParticipant(resource.data.participantUserIds));
+
+      allow list: if isTenantMember(tId)
+        && isChatParticipant(resource.data.participantUserIds);
+
+      allow create: if isTenantMember(tId)
+        && isChatParticipant(request.resource.data.participantUserIds)
+        && request.resource.data.participantUserIds.size() == 2;
+
+      allow update: if isTenantMember(tId)
+        && isChatParticipant(resource.data.participantUserIds);
+
+      match /messages/{messageId} {
+        allow read: if isTenantMember(tId)
+          && isChatParticipant(get(chatDocPath(tId, chatId)).data.participantUserIds);
+
+        allow create: if isTenantMember(tId)
+          && exists(chatDocPath(tId, chatId))
+          && request.auth.uid in get(chatDocPath(tId, chatId)).data.participantUserIds;
+      }
+    }
+  }
+}

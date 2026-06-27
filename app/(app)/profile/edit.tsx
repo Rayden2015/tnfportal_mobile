@@ -1,14 +1,19 @@
-import { useCallback, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Button, Card, ErrorBanner, FieldLabel, Input, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
-import type { Volunteer, VolunteerProfileOptions } from '@/src/api/types';
+import type { Volunteer, VolunteerProfileOptions, VolunteerProfileResult } from '@/src/api/types';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
+import { invalidateCache, invalidateVolunteerCaches, setCached } from '@/src/cache/queryCache';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptions } from '@/src/navigation/stackOptions';
+import { useCachedQuery } from '@/src/hooks/useCachedQuery';
 
 function tagsToString(value?: string | string[] | null) {
   if (!value) return '';
@@ -55,35 +60,32 @@ export default function EditProfileScreen() {
   const [form, setForm] = useState<Partial<Volunteer>>({});
   const [skills, setSkills] = useState('');
   const [languages, setLanguages] = useState('');
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const auth = token && tenantSlug ? { token, tenantSlug } : null;
 
-  const load = useCallback(async () => {
-    if (!auth) return;
-    setError(null);
-    try {
-      const data = await api.getVolunteerProfile(auth);
-      setProfile(data);
-      setOptions(data.profile_options ?? null);
-      setForm(data);
-      setSkills(tagsToString(data.skills));
-      setLanguages(tagsToString(data.languages_spoken));
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [auth]);
+  const profileQuery = useCachedQuery<VolunteerProfileResult>({
+    cacheKey: auth ? cacheKeys.volunteerProfile(auth.tenantSlug) : null,
+    enabled: Boolean(auth),
+    staleTimeMs: CACHE_TTL.profile,
+    queryFn: () => api.getVolunteerProfile(auth!),
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
+  useEffect(() => {
+    if (!profileQuery.data) {
+      return;
+    }
+
+    setProfile(profileQuery.data);
+    setOptions(profileQuery.data.profile_options ?? null);
+    setForm(profileQuery.data);
+    setSkills(tagsToString(profileQuery.data.skills));
+    setLanguages(tagsToString(profileQuery.data.languages_spoken));
+  }, [profileQuery.data]);
+
+  const loading = profileQuery.loading && !profile;
 
   const toggleArray = (field: 'interests' | 'preferred_roles' | 'availability_days' | 'availability_times', key: string) => {
     setForm((current) => {
@@ -105,6 +107,8 @@ export default function EditProfileScreen() {
         skills,
         languages_spoken: languages,
       });
+      await invalidateVolunteerCaches(auth.tenantSlug, profile?.id);
+      await profileQuery.refresh();
       Alert.alert('Saved', 'Your volunteer profile has been updated.');
       router.back();
     } catch (err) {
@@ -143,6 +147,11 @@ export default function EditProfileScreen() {
       );
       setProfile(updated);
       setForm(updated);
+      await setCached(cacheKeys.volunteerProfile(auth.tenantSlug), updated);
+      if (profile?.id) {
+        await setCached(cacheKeys.volunteer(auth.tenantSlug, profile.id), updated);
+      }
+      await invalidateCache(cacheKeys.volunteers(auth.tenantSlug));
       Alert.alert('Photo updated', 'Your profile photo has been saved.');
     } catch (err) {
       setError(formatApiError(err));
@@ -159,6 +168,11 @@ export default function EditProfileScreen() {
       const updated = await api.deleteVolunteerPhoto(auth);
       setProfile(updated);
       setForm(updated);
+      await setCached(cacheKeys.volunteerProfile(auth.tenantSlug), updated);
+      if (profile?.id) {
+        await setCached(cacheKeys.volunteer(auth.tenantSlug, profile.id), updated);
+      }
+      await invalidateCache(cacheKeys.volunteers(auth.tenantSlug));
     } catch (err) {
       setError(formatApiError(err));
     } finally {
@@ -186,23 +200,17 @@ export default function EditProfileScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: 'Edit volunteer profile' }} />
+      <Stack.Screen options={detailScreenOptions('Edit volunteer profile')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Title>Edit profile</Title>
           <Subtitle>{profile.profile_completion_percentage ?? 0}% complete</Subtitle>
-          {error ? <ErrorBanner message={error} /> : null}
+          {error || profileQuery.error ? <ErrorBanner message={error ?? profileQuery.error ?? ''} /> : null}
 
           <Card>
             <Text style={[styles.section, { color: colors.text }]}>Profile photo</Text>
             <View style={styles.photoRow}>
-              {profile.profile_photo_url ? (
-                <Image source={{ uri: profile.profile_photo_url }} style={styles.photo} />
-              ) : (
-                <View style={[styles.photoPlaceholder, { borderColor: colors.border }]}>
-                  <Text style={{ color: colors.textMuted }}>No photo</Text>
-                </View>
-              )}
+              <ProfileAvatar name={profile.name} photoUrl={profile.profile_photo_url} size={88} />
               <View style={styles.photoActions}>
                 <Button label="Choose photo" onPress={pickPhoto} loading={uploadingPhoto} variant="secondary" />
                 {profile.profile_photo_url ? (

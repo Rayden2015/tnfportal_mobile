@@ -1,14 +1,17 @@
-import { useCallback, useState } from 'react';
-import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useState } from 'react';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Button, Card, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { MyDuesResult, VolunteerProfileResult } from '@/src/api/types';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { useCachedQuery } from '@/src/hooks/useCachedQuery';
 
 export default function ProfileScreen() {
   const { user, tenant, token, tenantSlug, logout, hasAnyRole } = useAuth();
@@ -16,56 +19,61 @@ export default function ProfileScreen() {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
+  const auth = token && tenantSlug ? { token, tenantSlug } : null;
 
-  const [profile, setProfile] = useState<VolunteerProfileResult | null>(null);
-  const [dues, setDues] = useState<MyDuesResult | null>(null);
+  const profileQuery = useCachedQuery<VolunteerProfileResult | null>({
+    cacheKey: auth && !isStaff ? cacheKeys.volunteerProfile(auth.tenantSlug) : null,
+    enabled: Boolean(auth && !isStaff),
+    staleTimeMs: CACHE_TTL.profile,
+    queryFn: async () => {
+      try {
+        return await api.getVolunteerProfile(auth!);
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const duesQuery = useCachedQuery<MyDuesResult | null>({
+    cacheKey: auth && !isStaff ? cacheKeys.myDues(auth.tenantSlug) : null,
+    enabled: Boolean(auth && !isStaff),
+    staleTimeMs: CACHE_TTL.dues,
+    queryFn: async () => {
+      try {
+        return await api.getMyDues(auth!);
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const profile = profileQuery.data;
+  const dues = duesQuery.data;
+  const loading = profileQuery.loading || duesQuery.loading;
   const [paying, setPaying] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadProfile = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const auth = { token, tenantSlug };
-      const profilePromise = api.getVolunteerProfile(auth).catch(() => null);
-      const duesPromise = isStaff ? Promise.resolve(null) : api.getMyDues(auth).catch(() => null);
-      const [profileResult, duesResult] = await Promise.all([profilePromise, duesPromise]);
-      setProfile(profileResult);
-      setDues(duesResult);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [token, tenantSlug, isStaff]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadProfile();
-    }, [loadProfile]),
-  );
+  const [actionError, setActionError] = useState<string | null>(null);
+  const error = profileQuery.error ?? duesQuery.error ?? actionError;
 
   const signOutAllDevices = async () => {
-    if (!token || !tenantSlug) return;
+    if (!auth) return;
+    setActionError(null);
     try {
-      await api.logoutAll({ token, tenantSlug });
+      await api.logoutAll(auth);
       await logout();
     } catch (err) {
-      setError(formatApiError(err));
+      setActionError(formatApiError(err));
     }
   };
 
   const handlePayDues = async () => {
-    if (!token || !tenantSlug) return;
+    if (!auth) return;
     setPaying(true);
-    setError(null);
+    setActionError(null);
     try {
-      const result = await api.initiateDuesPayment({ token, tenantSlug });
+      const result = await api.initiateDuesPayment(auth);
       await Linking.openURL(result.checkout_url);
     } catch (err) {
-      setError(formatApiError(err));
+      setActionError(formatApiError(err));
     } finally {
       setPaying(false);
     }
@@ -97,7 +105,7 @@ export default function ProfileScreen() {
                   {outstanding > 0 ? <Button label="Pay now" onPress={handlePayDues} loading={paying} /> : null}
                   <Button
                     label="View dues history"
-                    onPress={() => router.push('/(app)/(tabs)/dues' as Href)}
+                    onPress={() => router.push('/dues' as Href)}
                     variant="secondary"
                   />
                 </View>
@@ -111,9 +119,9 @@ export default function ProfileScreen() {
         ) : null}
 
         <Card>
-          {profile?.profile_photo_url ? (
-            <Image source={{ uri: profile.profile_photo_url }} style={styles.photo} />
-          ) : null}
+          <View style={styles.profileHeader}>
+            <ProfileAvatar name={user?.name} photoUrl={profile?.profile_photo_url} size={96} />
+          </View>
           <Text style={[styles.name, { color: colors.text }]}>{user?.name}</Text>
           <Text style={[styles.meta, { color: colors.textMuted }]}>{user?.email}</Text>
           <Text style={[styles.meta, { color: colors.textMuted }]}>
@@ -198,10 +206,10 @@ const styles = StyleSheet.create({
   duesValue: { fontSize: 28, fontWeight: '700', marginTop: 4 },
   duesHint: { fontSize: 14, marginTop: 6, marginBottom: 12, lineHeight: 20 },
   duesActions: { gap: 8 },
-  photo: { width: 96, height: 96, borderRadius: 48, marginBottom: 12, alignSelf: 'center' },
-  name: { fontSize: 20, fontWeight: '700', marginBottom: 4 },
-  meta: { fontSize: 14, marginBottom: 2 },
-  completion: { fontSize: 14, marginTop: 10, marginBottom: 8 },
+  profileHeader: { alignItems: 'center', marginBottom: 12 },
+  name: { fontSize: 20, fontWeight: '700', marginBottom: 4, textAlign: 'center' },
+  meta: { fontSize: 14, marginBottom: 2, textAlign: 'center' },
+  completion: { fontSize: 14, marginTop: 10, marginBottom: 8, textAlign: 'center' },
   linkRow: {
     flexDirection: 'row',
     alignItems: 'center',

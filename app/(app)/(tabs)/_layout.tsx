@@ -56,13 +56,13 @@ function TabLayoutInner() {
       />
 
       {/* Hidden routes — reachable from More, Community, or deep links */}
-      <Tabs.Screen name="attendance" options={{ href: null }} />
-      <Tabs.Screen name="volunteers" options={{ href: null }} />
-      <Tabs.Screen name="dues" options={{ href: null }} />
-      <Tabs.Screen name="polls" options={{ href: null }} />
-      <Tabs.Screen name="donations" options={{ href: null }} />
-      <Tabs.Screen name="messages" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
+      <Tabs.Screen name="attendance" options={{ href: null, title: 'Attendance' }} />
+      <Tabs.Screen name="volunteers" options={{ href: null, title: 'Volunteers' }} />
+      <Tabs.Screen name="dues" options={{ href: null, title: 'My dues' }} />
+      <Tabs.Screen name="polls" options={{ href: null, title: 'Polls' }} />
+      <Tabs.Screen name="donations" options={{ href: null, title: 'Donations' }} />
+      <Tabs.Screen name="messages" options={{ href: null, title: 'Messages' }} />
+      <Tabs.Screen name="notifications" options={{ href: null, title: 'Notifications' }} />
     </Tabs>
   );
 }

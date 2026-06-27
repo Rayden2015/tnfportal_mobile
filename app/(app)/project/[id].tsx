@@ -4,11 +4,13 @@ import * as Location from 'expo-location';
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 
 import { Button, Card, EmptyState, ErrorBanner, FieldLabel, Input, Screen } from '@/components/ui';
+import { ProjectMediaGrid } from '@/components/ProjectMediaGrid';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { Attendance, AttendanceRoster, Project, ProjectInterestState } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
 import { queueCheckIn } from '@/src/offline/checkInQueue';
 import { queueCheckOut } from '@/src/offline/checkOutQueue';
 
@@ -277,7 +279,7 @@ export default function ProjectDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: project?.title ?? 'Project' }} />
+      <Stack.Screen options={detailScreenOptionsDynamic(project?.title, 'Project')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}
@@ -313,6 +315,34 @@ export default function ProjectDetailScreen() {
                   colors={colors}
                 />
               </Card>
+
+              {project.media && project.media.length > 0 ? (
+                <Card>
+                  <Text style={[styles.sectionTitle, { color: colors.text }]}>Media</Text>
+                  <Text style={[styles.sectionHint, { color: colors.textMuted }]}>
+                    Photos, videos, and documents for this project. Tap to view, download, or share.
+                  </Text>
+                  <ProjectMediaGrid
+                    items={project.media}
+                    onPressItem={(index) =>
+                      router.push({
+                        pathname: '/project/media/[projectId]',
+                        params: { projectId: String(project.id), index: String(index) },
+                      } as Href)
+                    }
+                  />
+                  <Button
+                    label="View all media"
+                    variant="secondary"
+                    onPress={() =>
+                      router.push({
+                        pathname: '/project/media/[projectId]',
+                        params: { projectId: String(project.id), index: '0' },
+                      } as Href)
+                    }
+                  />
+                </Card>
+              ) : null}
 
               {!isStaff ? (
                 <Card>

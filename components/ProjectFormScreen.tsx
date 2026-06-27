@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { ProgramTypeOption, Project, ProjectWritePayload } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptions } from '@/src/navigation/stackOptions';
 
 const STATUS_OPTIONS = ['planning', 'active', 'completed', 'on_hold', 'cancelled'] as const;
 
@@ -101,7 +102,7 @@ export function ProjectFormScreen({ mode, project }: Props) {
 
   return (
     <>
-      <Stack.Screen options={{ title: mode === 'create' ? 'New project' : 'Edit project' }} />
+      <Stack.Screen options={detailScreenOptions(mode === 'create' ? 'New project' : 'Edit project')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Title>{mode === 'create' ? 'Create project' : 'Edit project'}</Title>

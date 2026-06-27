@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { Survey, SurveyQuestion } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
 
 export default function PollDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -81,7 +82,7 @@ export default function PollDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: poll?.title ?? 'Poll' }} />
+      <Stack.Screen options={detailScreenOptionsDynamic(poll?.title, 'Poll')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           <Title>{poll?.title}</Title>

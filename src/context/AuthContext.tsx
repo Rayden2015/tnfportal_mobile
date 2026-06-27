@@ -13,6 +13,7 @@ import * as api from '@/src/api';
 import { ApiError } from '@/src/api/client';
 import type { LoginPayload, Tenant, User } from '@/src/api/types';
 import { DEFAULT_TENANT_SLUG } from '@/src/config';
+import { clearAllCache } from '@/src/cache/queryCache';
 import { deleteStoredItem, getStoredItem, setStoredItem } from '@/src/storage/secureStorage';
 
 const STORAGE_KEYS = {
@@ -160,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     await clearSession();
+    await clearAllCache();
     setToken(null);
     setTenantSlug(null);
     setUser(null);
@@ -176,6 +178,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     await clearSession();
+    await clearAllCache();
     setToken(null);
     setTenantSlug(null);
     setUser(null);

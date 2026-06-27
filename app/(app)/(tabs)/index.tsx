@@ -1,66 +1,62 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 
-import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
+import { Card, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
-import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
+import { useAuth } from '@/src/context/AuthContext';
+import { useCachedQuery } from '@/src/hooks/useCachedQuery';
+
+type HomeStats = {
+  projects: number;
+  attendance: number;
+  notifications: number;
+};
 
 export default function HomeScreen() {
   const { user, tenant, token, tenantSlug, hasAnyRole } = useAuth();
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
   const isStaff = hasAnyRole('tenant_admin', 'coordinator', 'super_admin');
+  const auth = token && tenantSlug ? { token, tenantSlug } : null;
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({ projects: 0, attendance: 0, notifications: 0 });
-
-  const load = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    const auth = { token, tenantSlug };
-    setError(null);
-
-    try {
+  const statsQuery = useCachedQuery<HomeStats>({
+    cacheKey: auth ? cacheKeys.homeStats(auth.tenantSlug, isStaff) : null,
+    enabled: Boolean(auth),
+    staleTimeMs: CACHE_TTL.homeStats,
+    queryFn: async () => {
       const [projects, attendance, notifications] = await Promise.all([
-        isStaff ? api.listProjects(auth, 5) : api.listMyProjects(auth),
-        isStaff ? api.listAttendance(auth) : api.listMyAttendance(auth),
-        api.listNotifications(auth),
+        isStaff ? api.listProjects(auth!, 5) : api.listMyProjects(auth!),
+        isStaff ? api.listAttendance(auth!) : api.listMyAttendance(auth!),
+        api.listNotifications(auth!),
       ]);
 
-      setStats({
+      return {
         projects: Array.isArray(projects) ? projects.length : projects.items.length,
         attendance: Array.isArray(attendance) ? attendance.length : attendance.items.length,
         notifications: notifications.filter((n) => !n.read_at).length,
-      });
-    } catch (err) {
-      setError(formatApiError(err));
-    }
-  }, [token, tenantSlug, isStaff]);
+      };
+    },
+  });
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  const stats = statsQuery.data ?? { projects: 0, attendance: 0, notifications: 0 };
+  const onRefresh = useCallback(async () => {
+    await statsQuery.refresh();
+  }, [statsQuery]);
 
   return (
     <Screen>
       <ScrollView
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        refreshControl={
+          <RefreshControl refreshing={statsQuery.refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />
+        }
         contentContainerStyle={styles.scroll}>
         <Title>Hello, {user?.name?.split(' ')[0] ?? 'there'}</Title>
         <Subtitle>{tenant?.name ?? 'Your organization'}</Subtitle>
 
-        {error ? <ErrorBanner message={error} /> : null}
+        {statsQuery.error ? <ErrorBanner message={statsQuery.error} /> : null}
 
         <View style={styles.grid}>
           <StatCard label="Projects" value={stats.projects} colors={colors} />
@@ -102,32 +98,33 @@ function StatCard({
 }
 
 const styles = StyleSheet.create({
-  scroll: {
-    paddingBottom: 24,
-  },
+  scroll: { paddingBottom: 32 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 8,
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 16,
   },
   statCard: {
     flexGrow: 1,
     minWidth: '30%',
     borderWidth: 1,
     borderRadius: 12,
-    padding: 14,
+    padding: 16,
+    alignItems: 'center',
   },
   statValue: {
     fontSize: 28,
     fontWeight: '700',
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
     marginTop: 4,
+    textAlign: 'center',
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     marginBottom: 6,
   },

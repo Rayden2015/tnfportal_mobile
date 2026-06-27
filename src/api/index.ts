@@ -558,6 +558,18 @@ export async function listExpenses(auth: AuthContext, perPage = 20) {
   return { items: result.data, meta: result.meta as PaginationMeta | undefined };
 }
 
+export interface FirebaseTokenResult {
+  token: string;
+  firebase_uid: string;
+  expires_in: number;
+  project_id?: string | null;
+}
+
+export async function getFirebaseToken(auth: AuthContext) {
+  const result = await apiRequest<FirebaseTokenResult>('/api/v1/me/firebase-token', authHeaders(auth));
+  return result.data;
+}
+
 export async function contributeToProject(auth: AuthContext, projectId: number, amount: number) {
   const result = await apiRequest<PaymentInitiationResult>(`/api/v1/projects/${projectId}/contribute`, {
     method: 'POST',

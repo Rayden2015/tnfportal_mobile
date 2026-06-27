@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { MessageItem } from '@/src/api/types';
 import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptionsDynamic } from '@/src/navigation/stackOptions';
 
 export default function MessageDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -35,7 +36,7 @@ export default function MessageDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: message?.subject ?? 'Message' }} />
+      <Stack.Screen options={detailScreenOptionsDynamic(message?.subject, 'Message')} />
       <Screen>
         <ScrollView contentContainerStyle={styles.scroll}>
           {error ? <ErrorBanner message={error} /> : null}

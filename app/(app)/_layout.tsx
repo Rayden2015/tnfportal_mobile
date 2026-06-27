@@ -2,6 +2,7 @@ import { Redirect, Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
 
 import { useAuth } from '@/src/context/AuthContext';
+import { detailScreenOptions, tabsGroupTitle } from '@/src/navigation/stackOptions';
 
 export default function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -20,23 +21,26 @@ export default function AppLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="project/[id]" options={{ headerShown: true, title: 'Project' }} />
-      <Stack.Screen name="project/create" options={{ headerShown: true, title: 'New project' }} />
-      <Stack.Screen name="project/edit/[id]" options={{ headerShown: true, title: 'Edit project' }} />
-      <Stack.Screen name="poll/[id]" options={{ headerShown: true, title: 'Poll' }} />
-      <Stack.Screen name="message/[id]" options={{ headerShown: true, title: 'Message' }} />
-      <Stack.Screen name="message/compose" options={{ headerShown: true, title: 'Compose' }} />
-      <Stack.Screen name="volunteer/[id]" options={{ headerShown: true, title: 'Volunteer' }} />
-      <Stack.Screen name="attendance/[id]" options={{ headerShown: true, title: 'Attendance' }} />
-      <Stack.Screen name="notification-preferences" options={{ headerShown: true, title: 'Notification preferences' }} />
-      <Stack.Screen name="profile/edit" options={{ headerShown: true, title: 'Edit profile' }} />
-      <Stack.Screen name="feedback/index" options={{ headerShown: true, title: 'My feedback' }} />
-      <Stack.Screen name="feedback/[projectId]" options={{ headerShown: true, title: 'Feedback' }} />
-      <Stack.Screen name="community/[id]" options={{ headerShown: true, title: 'Post' }} />
-      <Stack.Screen name="community/compose" options={{ headerShown: true, title: 'New post' }} />
-      <Stack.Screen name="consent" options={{ headerShown: true, title: 'Consent' }} />
-      <Stack.Screen name="account/password" options={{ headerShown: true, title: 'Change password' }} />
+      <Stack.Screen name="(tabs)" options={{ title: tabsGroupTitle }} />
+      <Stack.Screen name="project/[id]" options={detailScreenOptions('Project')} />
+      <Stack.Screen name="project/media/[projectId]" options={detailScreenOptions('Project media')} />
+      <Stack.Screen name="project/create" options={detailScreenOptions('New project')} />
+      <Stack.Screen name="project/edit/[id]" options={detailScreenOptions('Edit project')} />
+      <Stack.Screen name="poll/[id]" options={detailScreenOptions('Poll')} />
+      <Stack.Screen name="message/[id]" options={detailScreenOptions('Message')} />
+      <Stack.Screen name="message/compose" options={detailScreenOptions('Compose')} />
+      <Stack.Screen name="volunteer/[id]" options={detailScreenOptions('Volunteer')} />
+      <Stack.Screen name="attendance/[id]" options={detailScreenOptions('Attendance')} />
+      <Stack.Screen name="notification-preferences" options={detailScreenOptions('Notification preferences')} />
+      <Stack.Screen name="profile/edit" options={detailScreenOptions('Edit profile')} />
+      <Stack.Screen name="feedback/index" options={detailScreenOptions('My feedback')} />
+      <Stack.Screen name="feedback/[projectId]" options={detailScreenOptions('Feedback')} />
+      <Stack.Screen name="community/[id]" options={detailScreenOptions('Post')} />
+      <Stack.Screen name="community/compose" options={detailScreenOptions('New post')} />
+      <Stack.Screen name="chat/index" options={detailScreenOptions('Chat')} />
+      <Stack.Screen name="chat/[peerUserId]" options={detailScreenOptions('Chat')} />
+      <Stack.Screen name="consent" options={detailScreenOptions('Consent')} />
+      <Stack.Screen name="account/password" options={detailScreenOptions('Change password')} />
     </Stack>
   );
 }

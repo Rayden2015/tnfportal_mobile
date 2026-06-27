@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { useFocusEffect } from 'expo-router';
 
 import * as api from '@/src/api';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
+import { getCached, isStale, setCached } from '@/src/cache/queryCache';
 import { useAuth } from '@/src/context/AuthContext';
 
 type NotificationBadgeContextValue = {
@@ -15,23 +17,38 @@ export function NotificationBadgeProvider({ children }: { children: ReactNode })
   const { token, tenantSlug, isAuthenticated } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const refresh = useCallback(async () => {
-    if (!token || !tenantSlug) {
-      setUnreadCount(0);
-      return;
-    }
+  const refresh = useCallback(
+    async (force = false) => {
+      if (!token || !tenantSlug) {
+        setUnreadCount(0);
+        return;
+      }
 
-    try {
-      const items = await api.listNotifications({ token, tenantSlug });
-      setUnreadCount(items.filter((item) => !item.read_at).length);
-    } catch {
-      // Keep the last known count if refresh fails offline.
-    }
-  }, [token, tenantSlug]);
+      const unreadKey = cacheKeys.notificationsUnread(tenantSlug);
+      const cached = await getCached<number>(unreadKey);
+
+      if (cached && !force && !isStale(cached.fetchedAt, CACHE_TTL.notifications)) {
+        setUnreadCount(cached.data);
+        return;
+      }
+
+      try {
+        const items = await api.listNotifications({ token, tenantSlug });
+        const count = items.filter((item) => !item.read_at).length;
+        setUnreadCount(count);
+        await setCached(unreadKey, count);
+      } catch {
+        if (cached) {
+          setUnreadCount(cached.data);
+        }
+      }
+    },
+    [token, tenantSlug],
+  );
 
   useEffect(() => {
     if (isAuthenticated) {
-      void refresh();
+      void refresh(false);
     } else {
       setUnreadCount(0);
     }
@@ -39,11 +56,17 @@ export function NotificationBadgeProvider({ children }: { children: ReactNode })
 
   useFocusEffect(
     useCallback(() => {
-      void refresh();
+      void refresh(false);
     }, [refresh]),
   );
 
-  const value = useMemo(() => ({ unreadCount, refresh }), [unreadCount, refresh]);
+  const value = useMemo(
+    () => ({
+      unreadCount,
+      refresh: () => refresh(true),
+    }),
+    [unreadCount, refresh],
+  );
 
   return <NotificationBadgeContext.Provider value={value}>{children}</NotificationBadgeContext.Provider>;
 }

@@ -1,18 +1,23 @@
 import { useCallback, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 
+import { ContactLink } from '@/components/ContactLink';
 import { NotificationsList } from '@/components/NotificationsList';
 import { SegmentTabs } from '@/components/SegmentTabs';
+import { ProfileAvatar } from '@/components/ProfileAvatar';
 import { Card, EmptyState, ErrorBanner, Screen, Subtitle, Title } from '@/components/ui';
 import Colors from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import * as api from '@/src/api';
 import type { CommunityPost, Volunteer } from '@/src/api/types';
-import { formatApiError, useAuth } from '@/src/context/AuthContext';
+import { CACHE_TTL, cacheKeys } from '@/src/cache/keys';
+import { useAuth } from '@/src/context/AuthContext';
 import { useNotificationBadge } from '@/src/context/NotificationBadgeContext';
+import { useCachedQuery } from '@/src/hooks/useCachedQuery';
+import ChatListScreen from '@/app/(app)/chat/index';
 
-type CommunityTab = 'posts' | 'team' | 'notifications';
+type CommunityTab = 'posts' | 'team' | 'chat' | 'notifications';
 
 export default function CommunityScreen() {
   const { token, tenantSlug } = useAuth();
@@ -20,48 +25,36 @@ export default function CommunityScreen() {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
   const { unreadCount } = useNotificationBadge();
+  const auth = token && tenantSlug ? { token, tenantSlug } : null;
 
   const [tab, setTab] = useState<CommunityTab>('posts');
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const loadPosts = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    const result = await api.listCommunityPosts({ token, tenantSlug });
-    setPosts(result.items);
-  }, [token, tenantSlug]);
+  const postsQuery = useCachedQuery<CommunityPost[]>({
+    cacheKey: auth ? cacheKeys.communityPosts(auth.tenantSlug) : null,
+    enabled: Boolean(auth),
+    staleTimeMs: CACHE_TTL.communityPosts,
+    queryFn: async () => {
+      const result = await api.listCommunityPosts(auth!);
+      return result.items;
+    },
+  });
 
-  const loadVolunteers = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    setVolunteers(await api.listVolunteers({ token, tenantSlug }));
-  }, [token, tenantSlug]);
+  const volunteersQuery = useCachedQuery<Volunteer[]>({
+    cacheKey: auth ? cacheKeys.volunteers(auth.tenantSlug) : null,
+    enabled: Boolean(auth),
+    staleTimeMs: CACHE_TTL.volunteers,
+    queryFn: () => api.listVolunteers(auth!),
+  });
 
-  const load = useCallback(async () => {
-    if (!token || !tenantSlug) return;
-    setError(null);
-    try {
-      await Promise.all([loadPosts(), loadVolunteers()]);
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setLoading(false);
-    }
-  }, [token, tenantSlug, loadPosts, loadVolunteers]);
+  const posts = postsQuery.data ?? [];
+  const volunteers = volunteersQuery.data ?? [];
+  const loading = postsQuery.loading || volunteersQuery.loading;
+  const refreshing = postsQuery.refreshing || volunteersQuery.refreshing;
+  const error = postsQuery.error ?? volunteersQuery.error;
 
-  useFocusEffect(
-    useCallback(() => {
-      void load();
-    }, [load]),
-  );
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  };
+  const onRefresh = useCallback(async () => {
+    await Promise.all([postsQuery.refresh(), volunteersQuery.refresh()]);
+  }, [postsQuery, volunteersQuery]);
 
   return (
     <Screen style={styles.container}>
@@ -73,6 +66,7 @@ export default function CommunityScreen() {
         tabs={[
           { key: 'posts', label: 'Posts' },
           { key: 'team', label: 'Team' },
+          { key: 'chat', label: 'Chat' },
           { key: 'notifications', label: 'Alerts' },
         ]}
         active={tab}
@@ -116,15 +110,32 @@ export default function CommunityScreen() {
             !loading ? <EmptyState title="No volunteers" message="Volunteers will appear here once added." /> : null
           }
           renderItem={({ item }) => (
-            <Pressable onPress={() => router.push(`/volunteer/${item.id}` as Href)}>
-              <Card>
-                <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
-                {item.email ? <Text style={[styles.meta, { color: colors.textMuted }]}>{item.email}</Text> : null}
-                {item.phone ? <Text style={[styles.meta, { color: colors.textMuted }]}>{item.phone}</Text> : null}
-              </Card>
-            </Pressable>
+            <Card>
+              <View style={styles.teamRow}>
+                <Pressable onPress={() => router.push(`/volunteer/${item.id}` as Href)}>
+                  <ProfileAvatar name={item.name} photoUrl={item.profile_photo_url} size={52} />
+                </Pressable>
+                <View style={styles.teamDetails}>
+                  <Pressable onPress={() => router.push(`/volunteer/${item.id}` as Href)}>
+                    <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
+                  </Pressable>
+                  {item.email ? (
+                    <ContactLink type="email" value={item.email} style={{ color: Colors.primary }} />
+                  ) : null}
+                  {item.phone ? (
+                    <ContactLink type="phone" value={item.phone} style={{ color: Colors.primary }} />
+                  ) : null}
+                </View>
+              </View>
+            </Card>
           )}
         />
+      ) : null}
+
+      {tab === 'chat' ? (
+        <View style={styles.chatPane}>
+          <ChatListScreen embedded />
+        </View>
       ) : null}
 
       {tab === 'notifications' ? (
@@ -142,6 +153,8 @@ const styles = StyleSheet.create({
   author: { fontSize: 12, marginBottom: 4 },
   body: { fontSize: 15, marginBottom: 6 },
   name: { fontSize: 16, fontWeight: '700', marginBottom: 4 },
-  meta: { fontSize: 14, marginTop: 2 },
+  teamRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  teamDetails: { flex: 1 },
+  chatPane: { flex: 1 },
   notificationsPane: { flex: 1 },
 });
