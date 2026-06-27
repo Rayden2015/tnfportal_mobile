@@ -51,7 +51,13 @@
     "functions:deploy": "firebase deploy --only functions",
     "ios:build:sim": "xcodebuild -downloadPlatform iOS && npm run ios:build",
     "test:e2e:ios": "maestro test --config .maestro/config.yaml --device $(xcrun simctl list devices booted | grep -oE '[A-F0-9-]{36}' | head -1) .maestro/flows/volunteer-chat-e2e.yaml",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas:secrets": "bash scripts/eas-upload-secrets.sh",
+    "build:android:preview": "eas build --profile preview --platform android",
+    "build:ios:preview": "eas build --profile preview-ios --platform ios",
+    "build:android:production": "eas build --profile production --platform android",
+    "build:ios:production": "eas build --profile production --platform ios",
+    "submit:ios": "eas submit --platform ios --latest --profile production"
   },
   "private": true
 }

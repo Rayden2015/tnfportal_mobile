@@ -27,4 +27,18 @@ Example templates (no secrets) live beside the real files:
 
 ## EAS / CI builds
 
-Store `google-services.json` and `GoogleService-Info.plist` as EAS secrets or CI artifacts and copy them into `myfirebase/` before `expo prebuild` / native build — do not rely on them being in git.
+`app.config.ts` copies Firebase files from EAS **file** environment variables before prebuild:
+
+| EAS env name | Local path |
+|--------------|------------|
+| `GOOGLE_SERVICES_JSON` | `myfirebase/google-services.json` |
+| `GOOGLE_SERVICE_INFO_PLIST` | `myfirebase/GoogleService-Info.plist` |
+
+Upload once (after `eas login`):
+
+```bash
+chmod +x scripts/eas-upload-secrets.sh
+./scripts/eas-upload-secrets.sh
+```
+
+Full TestFlight / Firebase App Distribution steps: **`docs/release-testing.md`**.

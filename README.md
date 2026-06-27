@@ -137,6 +137,8 @@ eas build --profile production --platform android
 
 Update `EXPO_PUBLIC_API_URL` in `eas.json` production profile (or EAS secrets) before release builds.
 
+See **`docs/release-testing.md`** for TestFlight, Firebase App Distribution, EAS secrets upload, and keeping `https://ngo.cipree.com` as the production API.
+
 ### Offline check-in
 
 When a volunteer check-in fails due to connectivity, the app queues it locally (`AsyncStorage`) and auto-syncs when the network returns. Pending items appear on the Check-in tab with a manual **Sync now** button.
