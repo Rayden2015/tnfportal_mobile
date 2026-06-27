@@ -44,6 +44,10 @@
     "start:ios": "expo start --lan --ios",
     "android": "expo run:android",
     "ios": "expo start --ios --localhost",
+    "ios:build": "expo run:ios --device \"iPhone 17\"",
+    "functions:deploy": "firebase deploy --only functions",
+    "ios:build:sim": "xcodebuild -downloadPlatform iOS && npm run ios:build",
+    "test:e2e:ios": "maestro test --config .maestro/config.yaml --device $(xcrun simctl list devices booted | grep -oE '[A-F0-9-]{36}' | head -1) .maestro/flows/volunteer-chat-e2e.yaml",
     "web": "expo start --web"
   },
   "private": true

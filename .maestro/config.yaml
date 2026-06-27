@@ -1,0 +1,4 @@
+env:
+  E2E_EMAIL: nurundin2010@gmail.com
+  E2E_PASSWORD: password
+  E2E_CHAT_MESSAGE: Hello from iOS Maestro E2E test

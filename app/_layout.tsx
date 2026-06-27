@@ -4,12 +4,14 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from '@/src/context/AuthContext';
 import { FirebaseProvider } from '@/src/context/FirebaseContext';
 import { usePushNotifications } from '@/src/hooks/usePushNotifications';
+import { useChatNotifications } from '@/src/hooks/useChatNotifications';
 import { clearMonitoringUser, setMonitoringUser } from '@/src/monitoring/crashlytics';
 
 export { ErrorBoundary } from 'expo-router';
 
 function AppServices() {
   usePushNotifications();
+  useChatNotifications();
   const { user, tenantSlug, isAuthenticated } = useAuth();
 
   useEffect(() => {

@@ -1,0 +1,43 @@
+appId: com.infinixel.cipreengo
+---
+- launchApp
+- openLink: tnfportalmobile:///community
+- tapOn:
+    text: Open
+    optional: true
+- tapOn:
+    text: Cancel
+    optional: true
+- extendedWaitUntil:
+    visible:
+      text: ".*"
+    timeout: 90000
+- runFlow:
+    when:
+      visible:
+        id: login-email
+    file: login.yaml
+- extendedWaitUntil:
+    visible:
+      id: segment-posts
+    timeout: 90000
+- tapOn:
+    id: segment-team
+- scrollUntilVisible:
+    element:
+      text: Alfred Akai Nettey
+    direction: DOWN
+    timeout: 30000
+- tapOn: Alfred Akai Nettey
+- extendedWaitUntil:
+    visible: Message
+    timeout: 30000
+- tapOn: Message
+- extendedWaitUntil:
+    visible:
+      id: chat-ready
+    timeout: 90000
+- extendedWaitUntil:
+    visible:
+      id: chat-message-input
+    timeout: 30000

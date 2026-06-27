@@ -147,10 +147,20 @@ export default function ChatThreadScreen() {
         />
 
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Card>
+          <Card testID={chatId && ready ? 'chat-ready' : undefined}>
             <FieldLabel>Message</FieldLabel>
-            <Input value={draft} onChangeText={setDraft} placeholder="Write a message…" multiline />
-            <Button label="Send" onPress={handleSend} loading={sending} disabled={!ready || !chatId} />
+            <Input
+              testID="chat-message-input"
+              value={draft}
+              onChangeText={setDraft}
+              onEndEditing={(event) => setDraft(event.nativeEvent.text)}
+              placeholder="Write a message…"
+              multiline
+              returnKeyType="send"
+              blurOnSubmit={false}
+              onSubmitEditing={handleSend}
+            />
+            <Button testID="chat-send" label="Send" onPress={handleSend} loading={sending} disabled={!ready || !chatId} />
           </Card>
         </KeyboardAvoidingView>
       </Screen>

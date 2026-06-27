@@ -57,6 +57,7 @@ export default function LoginScreen() {
 
           <FieldLabel>Email</FieldLabel>
           <Input
+            testID="login-email"
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
@@ -67,6 +68,7 @@ export default function LoginScreen() {
 
           <FieldLabel>Password</FieldLabel>
           <Input
+            testID="login-password"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
@@ -74,7 +76,7 @@ export default function LoginScreen() {
             onSubmitEditing={onSubmit}
           />
 
-          <Button label="Sign in" onPress={onSubmit} loading={loading} />
+          <Button testID="login-submit" label="Sign in" onPress={onSubmit} loading={loading} />
 
           <Text style={styles.hint}>
             Search for your organization by name or slug, then sign in with your account.

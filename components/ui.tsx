@@ -19,12 +19,22 @@ export function Screen({ children, style }: { children: React.ReactNode; style?:
   return <View style={[styles.screen, { backgroundColor: colors.background }, style]}>{children}</View>;
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function Card({
+  children,
+  style,
+  testID,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+  testID?: string;
+}) {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
 
   return (
-    <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
+    <View
+      testID={testID}
+      style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }, style]}>
       {children}
     </View>
   );
@@ -68,12 +78,14 @@ export function Button({
   loading,
   variant = 'primary',
   disabled,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   loading?: boolean;
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
+  testID?: string;
 }) {
   const scheme = useColorScheme() ?? 'light';
   const colors = Colors[scheme];
@@ -82,6 +94,7 @@ export function Button({
 
   return (
     <Pressable
+      testID={testID}
       onPress={onPress}
       disabled={disabled || loading}
       style={({ pressed }) => [

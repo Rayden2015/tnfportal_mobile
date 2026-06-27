@@ -25,6 +25,7 @@ export function SegmentTabs<T extends string>({
         return (
           <Pressable
             key={tab.key}
+            testID={`segment-${tab.key}`}
             onPress={() => onChange(tab.key)}
             style={[styles.tab, selected && { backgroundColor: '#fff7ed' }]}>
             <Text style={[styles.label, { color: selected ? Colors.primary : colors.textMuted }]}>{tab.label}</Text>

@@ -5,23 +5,39 @@ type CrashlyticsModule = {
   setAttribute: (key: string, value: string) => void;
 };
 
-function loadCrashlytics(): CrashlyticsModule | null {
+type CrashlyticsFactory = () => CrashlyticsModule;
+
+function loadCrashlyticsFactory(): CrashlyticsFactory | null {
   try {
     // Native module — available in EAS/dev builds, not Expo Go.
+    // Default export is a factory: crashlytics().setUserId(...)
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require('@react-native-firebase/crashlytics').default as CrashlyticsModule;
+    return require('@react-native-firebase/crashlytics').default as CrashlyticsFactory;
   } catch {
     return null;
   }
 }
 
-const crashlytics = loadCrashlytics();
+const crashlyticsFactory = loadCrashlyticsFactory();
+
+function getCrashlytics(): CrashlyticsModule | null {
+  if (!crashlyticsFactory) {
+    return null;
+  }
+
+  try {
+    return crashlyticsFactory();
+  } catch {
+    return null;
+  }
+}
 
 export function isCrashlyticsAvailable(): boolean {
-  return crashlytics !== null;
+  return getCrashlytics() !== null;
 }
 
 export function logBreadcrumb(message: string): void {
+  const crashlytics = getCrashlytics();
   if (crashlytics) {
     crashlytics.log(message);
     return;
@@ -34,6 +50,7 @@ export function logBreadcrumb(message: string): void {
 
 export function recordError(error: unknown, context?: string): void {
   const err = error instanceof Error ? error : new Error(String(error));
+  const crashlytics = getCrashlytics();
 
   if (crashlytics) {
     if (context) {
@@ -49,6 +66,7 @@ export function recordError(error: unknown, context?: string): void {
 }
 
 export function setMonitoringUser(userId: string, tenantSlug?: string | null): void {
+  const crashlytics = getCrashlytics();
   if (!crashlytics) {
     if (__DEV__) {
       console.debug('[monitor] user', userId, tenantSlug ?? '');
@@ -63,6 +81,7 @@ export function setMonitoringUser(userId: string, tenantSlug?: string | null): v
 }
 
 export function clearMonitoringUser(): void {
+  const crashlytics = getCrashlytics();
   if (!crashlytics) {
     return;
   }
