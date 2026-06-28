@@ -133,7 +133,7 @@ eas env:create --name EXPO_PUBLIC_API_URL --value https://ngo.cipree.com \
 
 ## Troubleshooting
 
-### Android: `google-services.json is missing`
+### Android: `google-services.json is missing` (EAS cloud)
 
 The file is gitignored (correct). EAS cloud builds need file secrets uploaded first:
 
@@ -142,6 +142,17 @@ npm run eas:secrets
 eas env:list --environment preview   # confirm GOOGLE_SERVICES_JSON appears
 npm run build:android:preview
 ```
+
+### Android local: `settings.gradle` parse error
+
+If `npx expo run:android` fails with `Unexpected input: '{'` on `pluginManagement {`, the generated `android/` folder is stale or was hand-edited. Regenerate it:
+
+```bash
+npm run prebuild:android:clean
+npx expo run:android
+```
+
+Requires **JDK 17+** (`java -version`). For tester APKs you can skip local Gradle entirely and use `npm run build:android:preview` on EAS instead.
 
 ### iOS: `Developer Program Membership Expired`
 

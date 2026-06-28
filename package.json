@@ -47,6 +47,7 @@
     "start:localhost": "expo start --localhost",
     "start:ios": "expo start --lan --ios",
     "android": "expo run:android",
+    "prebuild:android:clean": "expo prebuild --platform android --clean",
     "ios": "expo start --ios --localhost",
     "ios:build": "expo run:ios --device \"iPhone 17\"",
     "functions:deploy": "firebase deploy --only functions",
