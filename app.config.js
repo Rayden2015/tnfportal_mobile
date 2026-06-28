@@ -1,28 +1,5 @@
-const { copyFileSync, existsSync, mkdirSync } = require('fs');
-const path = require('path');
-
 const appJson = require('./app.json');
-
-const MYFIREBASE_DIR = path.join(__dirname, 'myfirebase');
-
-/** Copy Firebase native config from EAS file env vars into myfirebase/ before prebuild. */
-function materializeFirebaseConfigFiles() {
-  mkdirSync(MYFIREBASE_DIR, { recursive: true });
-
-  const fileMappings = [
-    [process.env.GOOGLE_SERVICES_JSON, path.join(MYFIREBASE_DIR, 'google-services.json')],
-    [process.env.GOOGLE_SERVICE_INFO_PLIST, path.join(MYFIREBASE_DIR, 'GoogleService-Info.plist')],
-  ];
-
-  for (const [sourcePath, targetPath] of fileMappings) {
-    if (!sourcePath || !existsSync(sourcePath)) {
-      continue;
-    }
-
-    copyFileSync(sourcePath, targetPath);
-    console.log(`[config] Installed ${path.basename(targetPath)} from EAS file secret`);
-  }
-}
+const { materializeFirebaseConfig } = require('./scripts/materialize-firebase-config');
 
 function resolvePlugins(profile) {
   const plugins = appJson.expo.plugins ?? [];
@@ -43,7 +20,7 @@ function resolvePlugins(profile) {
   });
 }
 
-materializeFirebaseConfigFiles();
+materializeFirebaseConfig({ required: process.env.EAS_BUILD === 'true' });
 
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = ({ config }) => {
