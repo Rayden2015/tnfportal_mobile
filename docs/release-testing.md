@@ -37,13 +37,16 @@ chmod +x scripts/eas-upload-secrets.sh
 ./scripts/eas-upload-secrets.sh
 ```
 
-This stores file secrets `GOOGLE_SERVICES_JSON` and `GOOGLE_SERVICE_INFO_PLIST` plus string secrets from `.env`. `app.config.ts` copies them into `myfirebase/` automatically during EAS build.
+This stores file secrets `GOOGLE_SERVICES_JSON` and `GOOGLE_SERVICE_INFO_PLIST` plus string secrets from `.env`. `app.config.js` copies them into `myfirebase/` automatically during EAS build.
 
 Verify:
 
 ```bash
+eas env:list --environment preview
 eas env:list --environment production
 ```
+
+You should see **file** variables `GOOGLE_SERVICES_JSON` and `GOOGLE_SERVICE_INFO_PLIST`.
 
 ### 4. Apple (TestFlight)
 
@@ -125,6 +128,24 @@ Optional override without editing git:
 eas env:create --name EXPO_PUBLIC_API_URL --value https://ngo.cipree.com \
   --environment preview --environment production --visibility plaintext --force
 ```
+
+---
+
+## Troubleshooting
+
+### Android: `google-services.json is missing`
+
+The file is gitignored (correct). EAS cloud builds need file secrets uploaded first:
+
+```bash
+npm run eas:secrets
+eas env:list --environment preview   # confirm GOOGLE_SERVICES_JSON appears
+npm run build:android:preview
+```
+
+### iOS: `Developer Program Membership Expired`
+
+Renew at [developer.apple.com/account](https://developer.apple.com/account) (Account Holder role). Also resolve **App Store Connect agreement** updates and **EU trader status** in App Store Connect before iOS/TestFlight builds succeed. Use **Android preview** for testing while Apple account is renewed.
 
 ---
 
