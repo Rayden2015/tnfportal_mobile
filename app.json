@@ -90,7 +90,18 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://localhost:8000"
+      "apiUrl": "http://localhost:8000",
+      "router": {},
+      "eas": {
+        "projectId": "dbca283f-355b-42e6-9f90-b9f5371090e7"
+      }
+    },
+    "owner": "nurundin2010",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/dbca283f-355b-42e6-9f90-b9f5371090e7"
     }
   }
 }
